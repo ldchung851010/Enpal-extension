@@ -1,0 +1,5 @@
+:root { font-family: system-ui, sans-serif; color-scheme: light dark; }
+body { margin: 0; }
+.panel { padding: 16px; }
+h1 { margin: 0 0 12px; font-size: 20px; }
+#status { margin: 0; }
