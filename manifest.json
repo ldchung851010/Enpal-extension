@@ -2,7 +2,14 @@
   "manifest_version": 3,
   "name": "EnPal",
   "version": "1.0.0",
-  "permissions": ["storage", "identity", "scripting", "sidePanel", "tabs", "debugger"],
+  "permissions": [
+    "storage",
+    "identity",
+    "scripting",
+    "sidePanel",
+    "tabs",
+    "debugger"
+  ],
   "host_permissions": [
     "https://chatgpt.com/*",
     "https://sheets.googleapis.com/*",
@@ -17,5 +24,26 @@
   },
   "action": {
     "default_title": "EnPal"
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5x5mfHE+tWrih/LxsSYNcQHn6JdaAbhiXx/mROoqLGE+xTkRDW+A4OQzg/DBomTpdThQ2T1FD3YR7Asfkvgu0q5ZEEaTecxvSckI06N7CvcXPaRw7UbYWFoewaEN/3RriuA7zHRmNQ1oFJP1LvCQJQrOSWqlwN6LktPbLz4ufx3dKdnYEUnAS54sUIAlEs+DPb1niITebSXGIz2YFwP+aXWKvQSpisy/nXKtBMsZNqnXOSc5dpspBzMtNW80aCB+dLYfUAW5u+8Qo99yFN0daEBrp9mXM5skPYrlJAd37wPIxZ8x6lbk1yOCChmVJBGd8if+tRWtBHkrJ1tCrx4igwIDAQAB",
+  "oauth2": {
+    "client_id": "776717534717-6mi5nl2m2ldhlqnmai578r3405ku1f35.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets",
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "config/selectors.js",
+        "content/listening-mask.js",
+        "content/chatgpt-adapter.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
 }
