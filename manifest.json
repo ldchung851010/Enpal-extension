@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "EnPal",
+  "version": "1.0.0",
+  "permissions": ["storage", "identity", "scripting", "sidePanel", "tabs", "debugger"],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://sheets.googleapis.com/*",
+    "https://www.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
+  "action": {
+    "default_title": "EnPal"
+  }
+}
