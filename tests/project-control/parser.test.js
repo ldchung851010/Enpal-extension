@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {
   parseImplementationPlan,
   parseDocumentStatus
@@ -62,4 +63,15 @@ test('parses approved English and Vietnamese statuses', () => {
     parseDocumentStatus('**Trạng thái:** ĐÃ DUYỆT', 'vi'),
     'ĐÃ DUYỆT'
   );
+});
+
+
+test('real EnPal implementation plan exposes 16 tasks and 8 machine-readable gates', () => {
+  const markdown = fs.readFileSync(
+    'docs/superpowers/plans/2026-09-20-enpal-v1-implementation-plan.md',
+    'utf8'
+  );
+  const parsed = parseImplementationPlan(markdown);
+  assert.equal(parsed.tasks.length, 16);
+  assert.equal(parsed.gates.total, 8);
 });
