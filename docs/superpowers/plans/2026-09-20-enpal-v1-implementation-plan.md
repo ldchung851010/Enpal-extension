@@ -336,7 +336,7 @@ git commit -m "feat: define EnPal V1 runtime contracts"
 - Produces: `createLocalJournal(chromeApi)` with `read()`, `write(patch)`, `clear()`.
 - Journal key: `enpalRecovery`.
 
-- [ ] **Step 1: Write the failing journal test**
+- [x] **Step 1: Write the failing journal test**
 
 Create `tests/unit/local-journal.test.js`:
 
@@ -394,7 +394,7 @@ test('clear removes only EnPal recovery state', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test and confirm failure**
+- [x] **Step 2: Run the focused test and confirm failure**
 
 Run:
 
@@ -404,7 +404,7 @@ node --test tests/unit/local-journal.test.js
 
 Expected: FAIL because `storage/local-journal.js` does not exist.
 
-- [ ] **Step 3: Implement the journal**
+- [x] **Step 3: Implement the journal**
 
 Create `storage/local-journal.js`:
 
@@ -432,7 +432,7 @@ export function createLocalJournal(chromeApi = chrome) {
 }
 ```
 
-- [ ] **Step 4: Run focused + unit tests**
+- [x] **Step 4: Run focused + unit tests**
 
 Run:
 
@@ -443,7 +443,7 @@ npm run test:unit
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add storage/local-journal.js tests/helpers/fake-chrome.js tests/unit/local-journal.test.js
