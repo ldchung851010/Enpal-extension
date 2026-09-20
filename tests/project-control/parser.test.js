@@ -24,6 +24,9 @@ const plan = `
 ### Task 2: Second Task
 <!-- ENPAL_BLOCKED: Waiting for access -->
 - [ ] Step 1
+
+## Definition of Done
+- [x] Checkbox outside the final task
 `;
 
 test('parses gates, tasks, progress, and blockers', () => {
