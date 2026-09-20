@@ -1,9 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { APP_STATES } from '../../core/state.js';
+import {
+  APP_STATES,
+  SESSION_STATES,
+  PIPELINE_PHASES
+} from '../../core/state.js';
 
-test('exports the five locked app states', () => {
+test('exports approved app states', () => {
   assert.deepEqual(APP_STATES, [
-    'READY', 'LEARNING', 'PAUSED', 'PROCESSING', 'ERROR'
+    'SETUP_REQUIRED', 'READY', 'LEARNING', 'PAUSED', 'PROCESSING', 'ERROR'
+  ]);
+});
+
+test('exports non-terminal session states used by one-active-session invariant', () => {
+  assert.deepEqual(SESSION_STATES, [
+    'STARTING', 'IN_PROGRESS', 'PAUSED', 'PROCESSING', 'COMPLETED', 'ERROR'
+  ]);
+});
+
+test('exports durable pipeline phases in approved order', () => {
+  assert.deepEqual(PIPELINE_PHASES, [
+    'SESSION_STUB_CREATED',
+    'CHAT_BOUND',
+    'PAUSE_COMMITTED',
+    'ANALYZE_COMMITTED',
+    'UPDATE_COMMITTED',
+    'BRIEF_STAGED',
+    'BRIEF_PROMOTED',
+    'SESSION_COMPLETED'
   ]);
 });

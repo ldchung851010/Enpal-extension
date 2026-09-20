@@ -132,7 +132,7 @@ enpal-extension/
 - Produces: `APP_STATES`, `SESSION_STATES`, `PIPELINE_PHASES`, `loadRuntimeConfig(raw)`, `EnpalError`, `ERROR_CODES`.
 - Consumed by: every later workflow, repository, adapter, and UI task.
 
-- [ ] **Step 1: Expand the failing state-contract test**
+- [x] **Step 1: Expand the failing state-contract test**
 
 Replace `tests/unit/state.test.js` with:
 
@@ -171,7 +171,7 @@ test('exports durable pipeline phases in approved order', () => {
 });
 ```
 
-- [ ] **Step 2: Add failing config and error tests**
+- [x] **Step 2: Add failing config and error tests**
 
 Create `tests/unit/config.test.js`:
 
@@ -216,7 +216,7 @@ test('structured errors preserve code and recoverability', () => {
 });
 ```
 
-- [ ] **Step 3: Run tests and confirm failure**
+- [x] **Step 3: Run tests and confirm failure**
 
 Run:
 
@@ -226,7 +226,7 @@ npm run test:unit
 
 Expected: FAIL because the new exports/modules do not exist.
 
-- [ ] **Step 4: Implement the minimal contracts**
+- [x] **Step 4: Implement the minimal contracts**
 
 Set `core/state.js` to:
 
@@ -305,7 +305,7 @@ export class EnpalError extends Error {
 }
 ```
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 Run:
 
