@@ -197,7 +197,7 @@ The Extension triggers this operation and verifies that the durable write succee
 
 ### Legacy data authority
 
-The existing EnPal Database may still contain legacy areas such as generalized Learner state, Target Bank, old curriculum-position fields, or old Next Session/PREPARE structures.
+The existing EnPal Database may still contain legacy areas such as generalized Learner state, Target Bank, old curriculum-position fields, or other deprecated session-preparation structures.
 
 Those legacy areas are **not authoritative for V1 runtime** unless they are explicitly migrated into the contracts defined by this spec.
 
@@ -786,7 +786,7 @@ At minimum:
 - END must reflect the durable ANALYZE boundary and verified phase ordering.
 - Review Planner must retain its approved two-input contract: Base Lesson Brief + Review Ledger.
 - Session Brief consumers/producers must use the same canonical logical lesson model.
-- Legacy PREPARE / Next Session / Target Bank assumptions must not leak back into V1 runtime contracts.
+- Deprecated PREPARE / Target Bank assumptions must not leak back into V1 runtime contracts.
 
 This is documentation/contract alignment, not a new runtime subsystem.
 
