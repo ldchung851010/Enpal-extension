@@ -48,3 +48,19 @@ test('throws a source-specific error for a failed fetch', async () => {
 
   await assert.rejects(client.loadPlan(), /implementation plan.*503/i);
 });
+
+
+test('cache-busts document URLs so refresh cannot reuse stale raw/main content', async () => {
+  const calls = [];
+  const client = createGithubDataClient({
+    now: () => 123456,
+    fetchImpl: async (url) => {
+      calls.push(url);
+      return { ok: true, text: async () => '# fresh document' };
+    }
+  });
+
+  await client.loadPlan();
+
+  assert.match(calls[0], /\?v=123456$/);
+});

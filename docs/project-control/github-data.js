@@ -20,26 +20,28 @@ const SOURCES = Object.freeze({
   }
 });
 
-async function fetchText(fetchImpl, source) {
-  const response = await fetchImpl(source.url, { cache: 'no-store' });
+async function fetchText(fetchImpl, source, now) {
+  const separator = source.url.includes('?') ? '&' : '?';
+  const freshUrl = `${source.url}${separator}v=${now()}`;
+  const response = await fetchImpl(freshUrl, { cache: 'no-store' });
   if (!response.ok) {
     throw new Error(`Failed to load ${source.label}: HTTP ${response.status ?? 'unknown'}`);
   }
   return response.text();
 }
 
-export function createGithubDataClient({ fetchImpl = fetch } = {}) {
+export function createGithubDataClient({ fetchImpl = fetch, now = () => Date.now() } = {}) {
   return {
     loadPlan() {
-      return fetchText(fetchImpl, SOURCES.plan);
+      return fetchText(fetchImpl, SOURCES.plan, now);
     },
 
     loadEnglishSpec() {
-      return fetchText(fetchImpl, SOURCES.englishSpec);
+      return fetchText(fetchImpl, SOURCES.englishSpec, now);
     },
 
     loadVietnameseSpec() {
-      return fetchText(fetchImpl, SOURCES.vietnameseSpec);
+      return fetchText(fetchImpl, SOURCES.vietnameseSpec, now);
     },
 
     async loadRecentCommits() {
