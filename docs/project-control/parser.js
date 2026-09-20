@@ -47,9 +47,11 @@ export function parseImplementationPlan(markdown) {
 
   const taskHeading = /^###\s+Task\s+(\d+):\s*(.+?)\s*$/gm;
   const headings = [...markdown.matchAll(taskHeading)];
-  const tasks = headings.map((heading, index) => {
+  const tasks = headings.map((heading) => {
     const sectionStart = heading.index + heading[0].length;
-    const sectionEnd = index + 1 < headings.length ? headings[index + 1].index : markdown.length;
+    const remainder = markdown.slice(sectionStart);
+    const nextHeading = remainder.match(/^#{1,3}\s+/m);
+    const sectionEnd = nextHeading ? sectionStart + nextHeading.index : markdown.length;
     const section = markdown.slice(sectionStart, sectionEnd);
     const counts = countCheckboxes(section);
     const blockerMatch = section.match(/<!--\s*ENPAL_BLOCKED:\s*([^>]+?)\s*-->/i);
