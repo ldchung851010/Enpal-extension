@@ -31,6 +31,7 @@ export function deriveDashboardState({
     gates: parsed.gates,
     blockers,
     acceptanceTasks,
+    implementationPlanStatus: parseDocumentStatus(planMarkdown, 'en'),
     englishSpecStatus: parseDocumentStatus(enSpecMarkdown, 'en'),
     vietnameseSpecStatus: parseDocumentStatus(viSpecMarkdown, 'vi'),
     commits,
@@ -234,6 +235,7 @@ export function renderDashboard(state, root = document) {
   root.querySelector('#tasks-grid').innerHTML = renderTasks(state.tasks);
   root.querySelector('#gates-list').innerHTML = renderGates(state.gates);
   root.querySelector('#gate-summary').textContent = `${state.gates.completed}/${state.gates.total} hoàn tất`;
+  root.querySelector('#plan-status').textContent = state.implementationPlanStatus;
   root.querySelector('#spec-en-status').textContent = state.englishSpecStatus;
   root.querySelector('#spec-vi-status').textContent = state.vietnameseSpecStatus;
   root.querySelector('#blockers-list').innerHTML = renderBlockers(state.blockers);
@@ -251,6 +253,7 @@ function bindLinks(root = document) {
   const links = {
     'repo-link': PROJECT_LINKS.repository,
     'plan-link': PROJECT_LINKS.implementationPlan,
+    'plan-status-link': PROJECT_LINKS.implementationPlan,
     'spec-en-link': PROJECT_LINKS.englishSpec,
     'spec-vi-link': PROJECT_LINKS.vietnameseSpec,
     'audit-link': PROJECT_LINKS.audit,
