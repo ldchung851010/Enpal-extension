@@ -8,6 +8,8 @@ import {
 test('derives overview from repository documents', () => {
   const state = deriveDashboardState({
     planMarkdown: `
+**Status:** DRAFT FOR REVIEW
+
 ## Pre-Execution Gates
 - [x] Gate one
 - [ ] Gate two
@@ -29,6 +31,7 @@ test('derives overview from repository documents', () => {
   assert.equal(state.completedTasks, 0);
   assert.equal(state.totalTasks, 2);
   assert.equal(state.currentTask.title, 'A');
+  assert.equal(state.implementationPlanStatus, 'DRAFT FOR REVIEW');
   assert.equal(state.englishSpecStatus, 'APPROVED');
   assert.equal(state.vietnameseSpecStatus, 'ĐÃ DUYỆT');
   assert.equal(state.gates.items.length, 2);
