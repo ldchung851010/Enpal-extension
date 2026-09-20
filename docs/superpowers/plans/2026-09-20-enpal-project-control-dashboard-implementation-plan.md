@@ -39,7 +39,7 @@
 **Interfaces:**
 - Produces: `parseImplementationPlan(markdown)`, `parseDocumentStatus(markdown, language)`.
 
-- [ ] **Step 1: Write failing parser tests**
+- [x] **Step 1: Write failing parser tests**
 
 ```js
 import test from 'node:test';
@@ -98,7 +98,7 @@ test('parses approved English and Vietnamese statuses', () => {
 });
 ```
 
-- [ ] **Step 2: Run test and verify failure**
+- [x] **Step 2: Run test and verify failure**
 
 ```bash
 node --test tests/project-control/parser.test.js
@@ -106,7 +106,7 @@ node --test tests/project-control/parser.test.js
 
 Expected: FAIL because parser module does not exist.
 
-- [ ] **Step 3: Implement parser**
+- [x] **Step 3: Implement parser**
 
 Implement these rules only:
 
@@ -128,7 +128,7 @@ NOT STARTED otherwise
 
 Overall implementation progress uses task checkboxes only.
 
-- [ ] **Step 4: Run test**
+- [x] **Step 4: Run test**
 
 ```bash
 node --test tests/project-control/parser.test.js
@@ -136,7 +136,7 @@ node --test tests/project-control/parser.test.js
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/project-control/parser.js tests/project-control/parser.test.js
@@ -155,7 +155,7 @@ git commit -m "feat: add project dashboard markdown parser"
 - Produces: `createGithubDataClient({ fetchImpl })`.
 - Methods: `loadPlan()`, `loadEnglishSpec()`, `loadVietnameseSpec()`, `loadRecentCommits()`.
 
-- [ ] **Step 1: Write failing client test**
+- [x] **Step 1: Write failing client test**
 
 ```js
 import test from 'node:test';
@@ -197,7 +197,7 @@ test('loads raw project documents and normalized commit activity', async () => {
 });
 ```
 
-- [ ] **Step 2: Run test and verify failure**
+- [x] **Step 2: Run test and verify failure**
 
 ```bash
 node --test tests/project-control/github-data.test.js
@@ -205,7 +205,7 @@ node --test tests/project-control/github-data.test.js
 
 Expected: FAIL.
 
-- [ ] **Step 3: Implement exact public GitHub endpoints**
+- [x] **Step 3: Implement exact public GitHub endpoints**
 
 Repository constants:
 
@@ -231,7 +231,7 @@ https://api.github.com/repos/ldchung851010/Enpal-extension/commits?per_page=8
 
 Any non-OK response throws a source-specific error.
 
-- [ ] **Step 4: Run test**
+- [x] **Step 4: Run test**
 
 ```bash
 node --test tests/project-control/github-data.test.js
@@ -239,7 +239,7 @@ node --test tests/project-control/github-data.test.js
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/project-control/github-data.js tests/project-control/github-data.test.js
@@ -260,7 +260,7 @@ git commit -m "feat: add project dashboard GitHub data client"
 - Produces: `deriveDashboardState({ planMarkdown, enSpecMarkdown, viSpecMarkdown, commits })`.
 - Browser entrypoint: `refreshDashboard()`.
 
-- [ ] **Step 1: Write failing state-derivation test**
+- [x] **Step 1: Write failing state-derivation test**
 
 ```js
 import test from 'node:test';
@@ -289,7 +289,7 @@ test('derives overview from repository documents', () => {
 });
 ```
 
-- [ ] **Step 2: Run test and verify failure**
+- [x] **Step 2: Run test and verify failure**
 
 ```bash
 node --test tests/project-control/dashboard-state.test.js
@@ -297,7 +297,7 @@ node --test tests/project-control/dashboard-state.test.js
 
 Expected: FAIL.
 
-- [ ] **Step 3: Implement UI and in-memory refresh behavior**
+- [x] **Step 3: Implement UI and in-memory refresh behavior**
 
 Render sections:
 
@@ -334,7 +334,7 @@ setInterval(refreshCommits, 300_000);
 
 Add a `Refresh now` button.
 
-- [ ] **Step 4: Run dashboard tests and full suite**
+- [x] **Step 4: Run dashboard tests and full suite**
 
 ```bash
 node --test tests/project-control/*.test.js
@@ -343,7 +343,7 @@ npm test
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/project-control tests/project-control
@@ -363,7 +363,7 @@ git commit -m "feat: build EnPal project control dashboard"
 - Project work updates the existing Implementation Plan checkboxes in the same implementation commit.
 - Dashboard remains read-only.
 
-- [ ] **Step 1: Convert Pre-Execution Gates to checkboxes**
+- [x] **Step 1: Convert Pre-Execution Gates to checkboxes**
 
 Change each numbered gate from:
 
@@ -379,7 +379,7 @@ to:
 
 Do not mark a gate complete unless verified.
 
-- [ ] **Step 2: Add parser regression against the real Implementation Plan**
+- [x] **Step 2: Add parser regression against the real Implementation Plan**
 
 In `tests/project-control/parser.test.js`, read the real plan file and assert:
 
@@ -394,7 +394,7 @@ test('real EnPal implementation plan exposes exactly 16 tasks', () => {
 });
 ```
 
-- [ ] **Step 3: Document the update convention**
+- [x] **Step 3: Document the update convention**
 
 `docs/project-control/README.md` must state:
 
@@ -416,7 +416,7 @@ Then open:
 http://localhost:8000
 ```
 
-- [ ] **Step 4: Run all tests and local smoke test**
+- [x] **Step 4: Run all tests and local smoke test**
 
 ```bash
 node --test tests/project-control/*.test.js
@@ -433,7 +433,7 @@ Verify manually:
 - progress matches real plan checkboxes;
 - disconnecting network shows stale-state warning without clearing existing UI.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/project-control docs/superpowers/plans tests/project-control
