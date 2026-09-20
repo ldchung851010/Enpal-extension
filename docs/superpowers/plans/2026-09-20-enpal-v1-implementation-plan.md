@@ -41,11 +41,11 @@ Current gate record:
 
 - [ ] Target ChatGPT Project reads the exact canonical Teacher Role, Teaching Method, Session Brief, Curriculum, Review Ledger, and EnPal Database sources. — **OPEN: live Project reconfirmation required**
 - [ ] Target ChatGPT Project can perform the required runtime Google Sheet writes without a manual approval dialog on every lesson transaction. — **OPEN: prior spike was conditional; exact target flow still requires live proof**
-- [ ] Extension Google OAuth can read/write the configured runtime Sheets. — **DEFERRED TO TASK 3; blocks Google repository integration after Task 3, not Task 1–2**
+- [x] Extension Google OAuth can read/write the configured runtime Sheets. — **PASS 2026-09-20: live loaded-extension OAuth succeeded; CURRICULUM read returned HTTP 200; temporary test sheet was created, written, read back, and deleted successfully**
 - [x] Voice START/STOP works with the trusted semantic mechanism. — **PASS from verified spike; reconfirm during live adapter/E2E acceptance**
 - [x] Listening Mask prevents protected text exposure. — **PASS from verified spike; reconfirm during protected Listening E2E**
 - [x] Runtime contracts START, PAUSE, END, ANALYZE, UPDATE, Review Planner, Supervisor, Teacher Role, Speaking Method, Listening Method, Session Brief, and exact-source registry are aligned with the approved spec. — **PASS 2026-09-20**
-- [ ] Production Google OAuth client ID for this Chrome Extension is available before Task 3 manifest configuration. — **OPEN**
+- [x] Production Google OAuth client ID for this Chrome Extension is available before Task 3 manifest configuration. — **PASS 2026-09-20: production Chrome Extension OAuth client is configured for stable Extension ID `lnnnbbkifillljlhcpaekmjaemljlmkd`**
 - [x] Supervisor runtime contract supports fail-open DEGRADED mode when no verified live decision transport exists; a separate Observer/backend is not introduced. — **PASS**
 
 Canonical source registry:
@@ -55,7 +55,7 @@ Canonical source registry:
 Gate timing:
 - **Task 1–2:** may proceed with contract alignment complete.
 - **Task 3:** requires the production OAuth client ID before manifest configuration is finalized.
-- **Task 4 and later Google integration:** requires Extension OAuth read/write verification.
+- **Task 4 and later Google integration:** may proceed; live Extension OAuth read/write verification passed on 2026-09-20.
 - **Live ChatGPT Adapter / START / END acceptance:** requires the two target-Project read/write gates above.
 - **Final release:** requires all gates plus the full live E2E acceptance checklist.
 
@@ -586,7 +586,7 @@ export function createSheetsClient({ getToken, fetchImpl = fetch }) {
 }
 ```
 
-**Execution note (2026-09-20):** OAuth + Sheets client implementation is complete. The manifest is pinned to stable Extension ID `lnnnbbkifillljlhcpaekmjaemljlmkd` via the public `key`, and uses the production Chrome OAuth client `75024264025-jfk5jl6gip980b1fubg5jvmsnsdbqcf5.apps.googleusercontent.com`. Live extension read/write verification remains a separate platform gate before Task 4.
+**Execution note (2026-09-20):** OAuth + Sheets client implementation is complete. The manifest is pinned to stable Extension ID `lnnnbbkifillljlhcpaekmjaemljlmkd` via the public `key`, and uses the production Chrome OAuth client `75024264025-jfk5jl6gip980b1fubg5jvmsnsdbqcf5.apps.googleusercontent.com`. Live extension verification also passed: interactive OAuth succeeded, `CURRICULUM!A1:B3` read returned HTTP 200, and a temporary sheet was created, written with `ENPAL_WRITE_OK`, read back, then deleted successfully.
 
 Modify `manifest.json` to:
 - remove the unused generic `https://www.googleapis.com/*` host permission;
