@@ -31,13 +31,23 @@ function extractSection(markdown, headingPattern) {
 export function parseImplementationPlan(markdown) {
   const gateText = extractSection(markdown, /^##\s+Pre-Execution Gates\b/i);
   const gateMatches = [...gateText.matchAll(/^\s*-\s*\[([ xX])\]\s+(.+)$/gm)];
-  const gateItems = gateMatches.map((match) => ({
-    label: match[2].trim(),
-    completed: match[1].toLowerCase() === 'x'
-  }));
+  const gateItems = gateMatches.map((match) => {
+    const completed = match[1].toLowerCase() === 'x';
+    const cleaned = match[2].replace(/\*\*/g, '').trim();
+    const parts = cleaned.split(/\s+—\s+/);
+    const label = parts[0].trim();
+    const detail = parts.slice(1).join(' — ').trim();
+    const statusMatch = detail.match(/^(PASS|OPEN|DEFERRED)\b/i);
+    const status = statusMatch ? statusMatch[1].toUpperCase() : (completed ? 'PASS' : 'OPEN');
+
+    return { label, detail, status, completed };
+  });
   const gateCounts = {
     completed: gateItems.filter((item) => item.completed).length,
-    total: gateItems.length
+    total: gateItems.length,
+    pass: gateItems.filter((item) => item.status === 'PASS').length,
+    open: gateItems.filter((item) => item.status === 'OPEN').length,
+    deferred: gateItems.filter((item) => item.status === 'DEFERRED').length
   };
   const gates = {
     ...gateCounts,
