@@ -41,8 +41,10 @@ Do not begin Task 1 until these approved-spec gates are re-run in the target pro
 4. Voice START/STOP still works with the trusted semantic mechanism.
 5. Listening Mask still prevents protected text exposure.
 6. The runtime contract artifacts START, PAUSE, END, ANALYZE, UPDATE, Review Planner, Supervisor, Teacher Role, Speaking Method, and Listening Method are aligned with the approved spec.
+7. The production Google OAuth client ID for this Chrome Extension is available to the executor before Task 3.
+8. The Supervisor live decision transport, if available for V1, is documented behind the `decisionProvider` interface before Task 7; if no verified transport exists, V1 runs the approved fail-open DEGRADED path rather than inventing a second LLM/backend.
 
-If any gate fails, stop and update the spec instead of adding a DOM-scraping fallback.
+If any correctness-critical gate fails, stop and update the spec instead of adding a DOM-scraping fallback. Supervisor transport alone is non-blocking because the approved policy is fail-open.
 
 ## File Structure to Build
 
@@ -568,36 +570,25 @@ export function createSheetsClient({ getToken, fetchImpl = fetch }) {
 }
 ```
 
-Modify `manifest.json` to add explicit OAuth configuration while retaining only currently required permissions:
+Modify `manifest.json` to:
+- remove the unused generic `https://www.googleapis.com/*` host permission;
+- add `oauth2.scopes = ["https://www.googleapis.com/auth/spreadsheets"]`;
+- set `oauth2.client_id` to the **actual production Chrome Extension OAuth client ID established by Pre-Execution Gate 7**.
 
-```json
-{
-  "manifest_version": 3,
-  "name": "EnPal",
-  "version": "1.0.0",
-  "permissions": ["storage", "identity", "scripting", "sidePanel", "tabs", "debugger"],
-  "host_permissions": [
-    "https://chatgpt.com/*",
-    "https://sheets.googleapis.com/*"
-  ],
-  "oauth2": {
-    "client_id": "REPLACE_WITH_CHROME_EXTENSION_OAUTH_CLIENT_ID.apps.googleusercontent.com",
-    "scopes": ["https://www.googleapis.com/auth/spreadsheets"]
-  },
-  "background": {
-    "service_worker": "background/service-worker.js",
-    "type": "module"
-  },
-  "side_panel": {
-    "default_path": "sidepanel/index.html"
-  },
-  "action": {
-    "default_title": "EnPal"
-  }
+Before editing the manifest, run this explicit gate in the execution environment:
+
+```bash
+test -n "$ENPAL_GOOGLE_OAUTH_CLIENT_ID" || {
+  echo "ENPAL_GOOGLE_OAUTH_CLIENT_ID is required before Task 3"
+  exit 1
 }
+case "$ENPAL_GOOGLE_OAUTH_CLIENT_ID" in
+  *.apps.googleusercontent.com) ;;
+  *) echo "OAuth client ID must end in .apps.googleusercontent.com"; exit 1 ;;
+esac
 ```
 
-The implementation executor must replace the manifest OAuth client ID with the actual Google Cloud OAuth client ID before loading the extension; do not commit a secret because OAuth client IDs are identifiers, not secrets.
+Then set that exact literal value in `manifest.json`. The value is an OAuth client identifier, not a secret; do not invent or commit a fake value.
 
 - [ ] **Step 4: Run tests**
 
@@ -633,37 +624,149 @@ git commit -m "feat: add Google OAuth and Sheets client"
 - `createCurriculumRepository({ sheets, spreadsheetId })`: `getLesson(sequence)`, `getNextLesson(completedSequences)`.
 - `createSessionRepository({ sheets, spreadsheetId })`: `listActive()`, `createStartingSession()`, `bindChat()`, `markState()`, `getById()`.
 - `createSessionBriefRepository({ sheets, spreadsheetId })`: `readActive()`, `readStaging()`, `verifyStaging()`, `promoteStaging()`.
-- `createReviewLedgerRepository({ sheets, spreadsheetId })`: `readAll()`, `verifyUpdateMarker(sessionId)`.
+- `createReviewLedgerRepository({ sheets, spreadsheetId })`: `readAll()` only; durable UPDATE completion is verified on the active Session phase marker after ChatGPT has verified its Review Ledger write.
 
 - [ ] **Step 1: Write the failing repository tests**
 
-Cover these exact behaviors:
+Create concrete repository tests using in-memory fake Sheets clients.
+
+`tests/unit/curriculum-repository.test.js`:
 
 ```js
-test('curriculum chooses smallest sequence not completed', async () => {
-  // rows contain sequence 1,2,3; completed is [1,2]; expect lesson 3
-});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createCurriculumRepository } from '../../storage/curriculum-repository.js';
 
-test('session repository rejects more than one active session', async () => {
-  // two PAUSED/IN_PROGRESS rows must throw CONSISTENCY_ERROR
-});
-
-test('bindChat is idempotent for the same URL and rejects a different second URL', async () => {
-  // same session may only have one authoritative binding
-});
-
-test('staging verification rejects identity mismatch', async () => {
-  // _STAGING lesson_id must match expected next curriculum lesson
-});
-
-test('promotion uses one batchUpdate call', async () => {
-  // assert one client.batchUpdate invocation and no separate ACTIVE overwrite call
-});
-
-test('review update verification is keyed by the current session', async () => {
-  // stale marker for another session is not success
+test('curriculum chooses the smallest sequence not completed', async () => {
+  const sheets = {
+    async getValues() {
+      return [
+        ['curriculum_version', 'curriculum_sequence', 'lesson_id', 'primary_skill'],
+        ['v1', '1', 'L1', 'Speaking'],
+        ['v1', '2', 'L2', 'Listening'],
+        ['v1', '3', 'L3', 'Speaking']
+      ];
+    }
+  };
+  const repo = createCurriculumRepository({ sheets, spreadsheetId: 'curriculum' });
+  const lesson = await repo.getNextLesson([1, 2]);
+  assert.equal(lesson.lesson_id, 'L3');
+  assert.equal(lesson.curriculum_sequence, 3);
 });
 ```
+
+`tests/unit/session-repository.test.js` must include:
+
+```js
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createSessionRepository } from '../../storage/session-repository.js';
+
+test('rejects more than one durable active session', async () => {
+  const sheets = {
+    async getValues() {
+      return [
+        ['session_id', 'status', 'chat_url'],
+        ['S-001', 'PAUSED', 'https://chatgpt.com/c/1'],
+        ['S-002', 'IN_PROGRESS', 'https://chatgpt.com/c/2']
+      ];
+    }
+  };
+  const repo = createSessionRepository({ sheets, spreadsheetId: 'db' });
+  await assert.rejects(repo.listActive(), (error) => error.code === 'CONSISTENCY_ERROR');
+});
+
+test('bindChat is idempotent for the same authoritative URL', async () => {
+  let writes = 0;
+  const sheets = {
+    async getValues() {
+      return [
+        ['session_id', 'status', 'chat_url'],
+        ['S-001', 'STARTING', 'https://chatgpt.com/c/1']
+      ];
+    },
+    async updateValues() {
+      writes += 1;
+    }
+  };
+  const repo = createSessionRepository({ sheets, spreadsheetId: 'db' });
+  const result = await repo.bindChat('S-001', 'https://chatgpt.com/c/1');
+  assert.equal(result.chat_url, 'https://chatgpt.com/c/1');
+  assert.equal(writes, 0);
+});
+
+test('bindChat rejects a conflicting second URL', async () => {
+  const sheets = {
+    async getValues() {
+      return [
+        ['session_id', 'status', 'chat_url'],
+        ['S-001', 'STARTING', 'https://chatgpt.com/c/1']
+      ];
+    }
+  };
+  const repo = createSessionRepository({ sheets, spreadsheetId: 'db' });
+  await assert.rejects(
+    repo.bindChat('S-001', 'https://chatgpt.com/c/2'),
+    /already bound/
+  );
+});
+```
+
+`tests/unit/session-brief-repository.test.js` must include:
+
+```js
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createSessionBriefRepository } from '../../storage/session-brief-repository.js';
+
+test('staging verification rejects curriculum identity mismatch', async () => {
+  const sheets = {
+    async getValues() {
+      return [
+        ['key', 'value'],
+        ['curriculum_version', 'v1'],
+        ['curriculum_sequence', '3'],
+        ['lesson_id', 'L-WRONG'],
+        ['status', 'READY'],
+        ['Primary Skill', 'Speaking'],
+        ['Communicative Goal', 'Explain a root cause']
+      ];
+    }
+  };
+  const repo = createSessionBriefRepository({
+    sheets,
+    spreadsheetId: 'brief',
+    activeSheetId: 1,
+    stagingSheetId: 2
+  });
+  await assert.rejects(
+    repo.verifyStaging({ curriculum_version: 'v1', curriculum_sequence: 3, lesson_id: 'L3' }),
+    /identity mismatch/
+  );
+});
+
+test('promotion is one atomic batchUpdate call', async () => {
+  const calls = [];
+  const sheets = {
+    async batchUpdate(spreadsheetId, requests) {
+      calls.push({ spreadsheetId, requests });
+      return { replies: [] };
+    }
+  };
+  const repo = createSessionBriefRepository({
+    sheets,
+    spreadsheetId: 'brief',
+    activeSheetId: 1,
+    stagingSheetId: 2
+  });
+  await repo.promoteStaging({ rowCount: 12, columnCount: 2 });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].spreadsheetId, 'brief');
+  assert.equal(calls[0].requests.length, 3);
+});
+```
+
+`tests/unit/review-ledger-repository.test.js` must verify `readAll()` maps headers to rows without mutating review state; UPDATE commit verification belongs to the Session durable phase marker, not to a second Review Ledger marker.
 
 Use an inline fake `sheets` object in each test; do not hit Google.
 
@@ -845,19 +948,73 @@ git commit -m "feat: isolate ChatGPT Web adapter and control envelope"
 Test the exact invariant:
 
 ```js
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { activateFocusedControlWithDebugger } from '../../background/voice-debugger.js';
+
 test('always detaches debugger after trusted activation failure', async () => {
-  // fake attach succeeds, dispatchKeyEvent throws, detach must still be called exactly once
+  let detachCount = 0;
+  const chromeApi = {
+    debugger: {
+      async attach() {},
+      async sendCommand() {
+        throw new Error('dispatch failed');
+      },
+      async detach() {
+        detachCount += 1;
+      }
+    }
+  };
+
+  await assert.rejects(
+    activateFocusedControlWithDebugger(chromeApi, 9),
+    /dispatch failed/
+  );
+  assert.equal(detachCount, 1);
 });
 ```
 
 - [ ] **Step 2: Write failing mask tests**
 
-Cover:
+Create concrete controller tests:
 
 ```js
-test('arm confirms protected state before START can continue', async () => {});
-test('required mask failure is surfaced as MASK_REQUIRED', async () => {});
-test('pause does not disarm the mask', async () => {});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createListeningMaskController } from '../../listening/listening-mask-controller.js';
+
+test('arm confirms protected state before START can continue', async () => {
+  const adapter = {
+    async setListeningMask() {
+      return { ok: true, armed: true };
+    }
+  };
+  const mask = createListeningMaskController(adapter);
+  assert.deepEqual(await mask.arm(4), { armed: true });
+});
+
+test('required mask failure is surfaced as MASK_REQUIRED', async () => {
+  const adapter = {
+    async setListeningMask() {
+      return { ok: false, armed: false };
+    }
+  };
+  const mask = createListeningMaskController(adapter);
+  await assert.rejects(mask.arm(4), (error) => error.code === 'MASK_REQUIRED');
+});
+
+test('pause does not disarm the mask', async () => {
+  const calls = [];
+  const adapter = {
+    async setListeningMask(tabId, armed) {
+      calls.push({ tabId, armed });
+      return { ok: true, armed };
+    }
+  };
+  const mask = createListeningMaskController(adapter);
+  await mask.arm(4);
+  assert.deepEqual(calls, [{ tabId: 4, armed: true }]);
+});
 ```
 
 - [ ] **Step 3: Run focused tests and confirm failure**
@@ -925,16 +1082,77 @@ git commit -m "feat: isolate trusted voice and listening mask controls"
 - [ ] **Step 1: Write failing supervisor tests**
 
 ```js
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createSupervisorController } from '../../supervisor/supervisor-controller.js';
+
 test('filters ENPAL_CONTROL traffic before requesting a decision', async () => {
-  // input contains learner turn + control turn; provider receives learner turn only
+  let observed;
+  const controller = createSupervisorController({
+    decisionProvider: async ({ turns }) => {
+      observed = turns;
+      return { action: 'CONTINUE', instruction: 'NONE' };
+    },
+    deliverInstruction: async () => {}
+  });
+
+  await controller.start({
+    sessionId: 'S-001',
+    lessonBrief: { lesson_id: 'L1' },
+    teachingMethod: 'speaking'
+  });
+  await controller.observe([
+    { role: 'learner', text: 'I work as an engineer.' },
+    { role: 'user', text: 'ENPAL_CONTROL\ntype=PAUSE\nEND_ENPAL_CONTROL' }
+  ]);
+
+  assert.deepEqual(observed, [
+    { role: 'learner', text: 'I work as an engineer.' }
+  ]);
 });
 
 test('NUDGE delivers exactly one instruction', async () => {
-  // provider returns { action:'NUDGE', instruction:'Ask one shorter follow-up.' }
+  const delivered = [];
+  const controller = createSupervisorController({
+    decisionProvider: async () => ({
+      action: 'NUDGE',
+      instruction: 'Ask one shorter follow-up.'
+    }),
+    deliverInstruction: async (instruction) => delivered.push(instruction)
+  });
+
+  await controller.start({
+    sessionId: 'S-001',
+    lessonBrief: { lesson_id: 'L1' },
+    teachingMethod: 'speaking'
+  });
+  await controller.observe([{ role: 'learner', text: 'Because machine stop.' }]);
+
+  assert.deepEqual(delivered, ['Ask one shorter follow-up.']);
 });
 
-test('provider failure sets degraded status and does not throw into lesson workflow', async () => {
-  // status becomes DEGRADED, observe resolves without fabricated instruction
+test('provider failure sets degraded status without fabricating a rubric decision', async () => {
+  const controller = createSupervisorController({
+    decisionProvider: async () => {
+      throw new Error('supervisor unavailable');
+    },
+    deliverInstruction: async () => {
+      throw new Error('must not deliver');
+    }
+  });
+
+  await controller.start({
+    sessionId: 'S-001',
+    lessonBrief: { lesson_id: 'L1' },
+    teachingMethod: 'speaking'
+  });
+  const result = await controller.observe([{ role: 'learner', text: 'Hello.' }]);
+
+  assert.deepEqual(result, {
+    action: 'CONTINUE_WITHOUT_SUPERVISOR',
+    degraded: true
+  });
+  assert.equal(controller.status(), 'DEGRADED');
 });
 ```
 
