@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>EnPal Project Control</title>
+  <link rel="stylesheet" href="./dashboard.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ENPAL / PROJECT CONTROL</p>
+        <h1>EnPal V1 — Trung tâm tiến độ</h1>
+        <p class="subtitle">Dashboard chỉ đọc, cập nhật trực tiếp từ GitHub. Không có trạng thái dự án riêng.</p>
+      </div>
+      <div class="topbar-actions">
+        <a id="repo-link" class="text-link" href="#" target="_blank" rel="noreferrer">Mở GitHub</a>
+        <button id="refresh-now" class="primary-button" type="button">Cập nhật ngay</button>
+      </div>
+    </header>
+
+    <div id="refresh-warning" class="warning-banner" hidden></div>
+
+    <main>
+      <section class="hero-grid" aria-label="Tổng quan dự án">
+        <article class="hero-card hero-card--progress">
+          <div class="hero-card__header">
+            <span>Tiến độ implementation</span>
+            <strong id="overall-percent">—</strong>
+          </div>
+          <div class="progress-track" aria-hidden="true">
+            <span id="overall-progress" style="width:0%"></span>
+          </div>
+          <div class="hero-meta">
+            <div>
+              <span>Bước hoàn tất</span>
+              <strong id="step-count">—</strong>
+            </div>
+            <div>
+              <span>Task hoàn tất</span>
+              <strong id="task-count">—</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="hero-card">
+          <span class="metric-label">Đang tập trung</span>
+          <strong id="current-task" class="metric-value metric-value--task">Đang tải…</strong>
+          <p class="metric-note">Task được suy ra từ checklist thực tế trong Implementation Plan.</p>
+        </article>
+
+        <article class="hero-card">
+          <span class="metric-label">Cập nhật gần nhất</span>
+          <strong id="last-refresh" class="metric-value">—</strong>
+          <p class="metric-note">Plan/spec: mỗi 60 giây · Commit: mỗi 5 phút</p>
+        </article>
+      </section>
+
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">IMPLEMENTATION</p>
+            <h2>16 task triển khai</h2>
+          </div>
+          <a id="plan-link" class="text-link" href="#" target="_blank" rel="noreferrer">Xem Implementation Plan</a>
+        </div>
+        <div id="tasks-grid" class="task-grid" aria-live="polite"></div>
+      </section>
+
+      <div class="two-column-grid">
+        <section class="section-card">
+          <div class="section-heading section-heading--compact">
+            <div>
+              <p class="section-kicker">PLATFORM GATES</p>
+              <h2>Điều kiện trước implementation</h2>
+            </div>
+            <span id="gate-summary" class="quiet-badge">—</span>
+          </div>
+          <ul id="gates-list" class="gate-list"></ul>
+        </section>
+
+        <section class="section-card">
+          <div class="section-heading section-heading--compact">
+            <div>
+              <p class="section-kicker">GOVERNANCE</p>
+              <h2>Tài liệu kiểm soát</h2>
+            </div>
+          </div>
+          <div class="governance-list">
+            <a id="spec-en-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+              <span>Technical Spec</span>
+              <strong id="spec-en-status">—</strong>
+            </a>
+            <a id="spec-vi-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+              <span>Technical Spec tiếng Việt</span>
+              <strong id="spec-vi-status">—</strong>
+            </a>
+            <a id="audit-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+              <span>Multi-role Audit</span>
+              <strong>Xem</strong>
+            </a>
+            <a id="audit-closure-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+              <span>Audit Closure</span>
+              <strong>Xem</strong>
+            </a>
+          </div>
+        </section>
+      </div>
+
+      <div class="two-column-grid">
+        <section class="section-card">
+          <div class="section-heading section-heading--compact">
+            <div>
+              <p class="section-kicker">QUALITY GATES</p>
+              <h2>Tests & Acceptance</h2>
+            </div>
+          </div>
+          <div id="acceptance-list" class="acceptance-list"></div>
+        </section>
+
+        <section class="section-card">
+          <div class="section-heading section-heading--compact">
+            <div>
+              <p class="section-kicker">RISKS</p>
+              <h2>Blockers hiện tại</h2>
+            </div>
+          </div>
+          <div id="blockers-list" class="blockers-list"></div>
+        </section>
+      </div>
+
+      <section class="section-block section-block--last">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">ACTIVITY</p>
+            <h2>GitHub gần đây</h2>
+          </div>
+          <span class="quiet-badge">8 commit gần nhất</span>
+        </div>
+        <div id="commits-list" class="commit-list"></div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Project Control nằm ngoài EnPal learner runtime.</span>
+      <span>Nguồn sự thật: GitHub repository.</span>
+    </footer>
+  </div>
+
+  <script type="module" src="./dashboard.js"></script>
+</body>
+</html>
