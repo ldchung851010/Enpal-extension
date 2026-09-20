@@ -30,6 +30,10 @@ test('parses gates, tasks, progress, and blockers', () => {
 
   assert.equal(result.gates.total, 2);
   assert.equal(result.gates.completed, 1);
+  assert.deepEqual(result.gates.items, [
+    { label: 'Gate A', completed: true },
+    { label: 'Gate B', completed: false }
+  ]);
   assert.equal(result.tasks.length, 2);
 
   assert.deepEqual(result.tasks[0], {
