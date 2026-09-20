@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="dark">
   <title>EnPal Project Control</title>
   <style>
 :root{
@@ -138,6 +138,13 @@ a.item:hover{border-color:#4b3f72;background:#15142b;text-decoration:none}
 .commit span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dbe3f1}
 .empty{color:var(--muted);font-size:.84rem}
 footer{display:flex;justify-content:space-between;color:#66758f;font-size:.74rem;gap:12px}
+.gate-item{display:grid;grid-template-columns:22px 1fr;gap:9px;align-items:start;margin:0 0 12px;color:#a9b4c8}
+.gate-item.pass{color:#6ee7b7}
+.gate-item.open{color:#d5dbea}
+.gate-item.deferred{color:#fbbf24}
+.gate-state{display:inline-block;min-width:76px;margin-right:6px;font-size:.68rem;letter-spacing:.05em}
+.gate-detail{display:block;margin-top:4px;color:#7f8ba3;font-size:.72rem;line-height:1.45}
+.gate-list{list-style:none;padding:0;margin:0}
 @media(max-width:1000px){
   .grid3{grid-template-columns:1fr 1fr}
   .progressCard{grid-column:1/-1}
@@ -220,7 +227,8 @@ footer{display:flex;justify-content:space-between;color:#66758f;font-size:.74rem
           <div class="section-heading section-heading--compact">
             <div>
               <p class="section-kicker">PLATFORM GATES</p>
-              <h2>Điều kiện trước implementation</h2>
+              <h2>Platform gates theo từng phase</h2>
+              <p class="metric-note">Task 1–2 có thể bắt đầu. OPEN/DEFERRED chỉ chặn phase được ghi trong plan.</p>
             </div>
             <span id="gate-summary" class="quiet-badge">—</span>
           </div>
@@ -333,13 +341,23 @@ function extractSection(markdown, headingPattern) {
 function parseImplementationPlan(markdown) {
   const gateText = extractSection(markdown, /^##\s+Pre-Execution Gates\b/i);
   const gateMatches = [...gateText.matchAll(/^\s*-\s*\[([ xX])\]\s+(.+)$/gm)];
-  const gateItems = gateMatches.map((match) => ({
-    label: match[2].trim(),
-    completed: match[1].toLowerCase() === 'x'
-  }));
+  const gateItems = gateMatches.map((match) => {
+    const completed = match[1].toLowerCase() === 'x';
+    const cleaned = match[2].replace(/\*\*/g, '').trim();
+    const parts = cleaned.split(/\s+—\s+/);
+    const label = parts[0].trim();
+    const detail = parts.slice(1).join(' — ').trim();
+    const statusMatch = detail.match(/^(PASS|OPEN|DEFERRED)\b/i);
+    const status = statusMatch ? statusMatch[1].toUpperCase() : (completed ? 'PASS' : 'OPEN');
+
+    return { label, detail, status, completed };
+  });
   const gateCounts = {
     completed: gateItems.filter((item) => item.completed).length,
-    total: gateItems.length
+    total: gateItems.length,
+    pass: gateItems.filter((item) => item.status === 'PASS').length,
+    open: gateItems.filter((item) => item.status === 'OPEN').length,
+    deferred: gateItems.filter((item) => item.status === 'DEFERRED').length
   };
   const gates = {
     ...gateCounts,
@@ -673,13 +691,20 @@ function renderTasks(tasks) {
 }
 
 function renderGates(gates) {
-  if (!gates.items.length) return '<p class="empty">Chưa có gate dạng checklist.</p>';
-  return gates.items.map((gate) => `
-    <li class="gate-item ${gate.completed ? 'done' : ''}">
-      <span class="gate-check">${gate.completed ? '✓' : '○'}</span>
-      <span>${escapeHtml(gate.label)}</span>
-    </li>
-  `).join('');
+  if (!gates.items.length) return '<p class="empty">Chưa có platform gate.</p>';
+  return gates.items.map((gate) => {
+    const icon = gate.status === 'PASS' ? '✓' : gate.status === 'DEFERRED' ? '↳' : '○';
+    return `
+      <li class="gate-item ${statusClass(gate.status)}">
+        <span class="gate-check">${icon}</span>
+        <span>
+          <strong class="gate-state">${escapeHtml(gate.status)}</strong>
+          ${escapeHtml(gate.label)}
+          ${gate.detail ? `<small class="gate-detail">${escapeHtml(gate.detail)}</small>` : ''}
+        </span>
+      </li>
+    `;
+  }).join('');
 }
 
 function renderCommits(commits) {
@@ -727,7 +752,8 @@ function renderDashboard(state, root = document) {
   root.querySelector('#last-refresh').textContent = formatDate(state.lastUpdated);
   root.querySelector('#tasks-grid').innerHTML = renderTasks(state.tasks);
   root.querySelector('#gates-list').innerHTML = renderGates(state.gates);
-  root.querySelector('#gate-summary').textContent = `${state.gates.completed}/${state.gates.total} hoàn tất`;
+  root.querySelector('#gate-summary').textContent =
+    `${state.gates.pass} PASS · ${state.gates.open} OPEN · ${state.gates.deferred} DEFERRED`;
   root.querySelector('#plan-status').textContent = state.implementationPlanStatus;
   root.querySelector('#spec-en-status').textContent = state.englishSpecStatus;
   root.querySelector('#spec-vi-status').textContent = state.vietnameseSpecStatus;
