@@ -1,33 +1,44 @@
 # EnPal Extension V1 — Technical Spec
 
-**Status:** DRAFT FOR REVIEW  
+**Status:** DRAFT FOR FINAL REVIEW  
 **Date:** 2026-09-20  
-**Revision:** Updated after adversarial architecture audit  
+**Revision:** Multi-role architecture closure  
 **Authority:** This document is the canonical runtime architecture for EnPal Extension V1 once approved.  
-**Project Control:** The project-management dashboard / Project Control is explicitly outside EnPal runtime.
+**Project Control:** Project management / Project Control is outside EnPal learner runtime.
 
 ---
 
-## 0. Purpose and Scope
+## 0. Purpose and V1 Boundary
 
-EnPal V1 is a Chrome Extension that orchestrates English Speaking and Listening lessons through ChatGPT Web.
+EnPal V1 is a desktop Chrome Extension that orchestrates English Speaking and Listening lessons through ChatGPT Web.
 
-The design goal is deliberately narrow:
+The design is intentionally narrow:
 
-- ChatGPT Web teaches, reasons, and produces semantic learning state.
-- The Chrome Extension orchestrates the workflow.
-- Google Sheets stores durable learning state.
-- The core curriculum is prebuilt and progresses deterministically.
-- Personalization is primarily applied through the review layer.
-- The system must survive refreshes, extension restarts, and recoverable failures without duplicating sessions or advancing curriculum twice.
+- ChatGPT Web = teacher + reasoning engine.
+- Chrome Extension = orchestration + deterministic verification.
+- Google Sheets = durable runtime learning state.
+- Core curriculum = fixed and deterministic.
+- Personalization = primarily the review layer.
+- One learning session = one active ChatGPT conversation.
+- No EnPal backend.
+- No Observer LLM service.
+- No parsing/scraping ChatGPT assistant prose as machine output.
 
-V1 does **not** attempt to become an independent tutoring engine.
+V1 supports **desktop Chrome + ChatGPT Web + configured Google Workspace files**. Mobile/iPhone/iPad runtime is outside V1.
 
-Detailed prompt text, teaching rubrics, and skill-specific rules live in separately versioned artifacts. This spec defines their contracts, lifecycle, responsibilities, and boundaries.
+The normal learner command model is:
+
+```text
+START
+PAUSE
+END
+```
+
+A retry/recover action may appear only when the system is in a recoverable error state. The learner never manually invokes ANALYZE, UPDATE, Review Planner, or other internal phases.
+
+Detailed teaching prompts, rubrics, and skill-specific rules remain separate versioned artifacts.
 
 ### Runtime contracts outside this file
-
-The following are independent, versioned artifacts:
 
 - START Skill
 - PAUSE Skill
@@ -40,778 +51,988 @@ The following are independent, versioned artifacts:
 - Speaking Teaching Method
 - Listening Teaching Method
 
-This Technical Spec is authoritative when defining how those artifacts interact.
+This spec is authoritative for how those artifacts interact.
 
-Before implementation begins, affected Skill artifacts must be aligned to the canonical contracts in this spec, especially START, PAUSE, END, Review Planner, and any artifact that reads or writes the Session Brief.
+Before implementation planning is executable, those artifacts must be aligned to the contracts in this spec.
 
 ---
 
 # 1. Architecture
 
-## 1.1 Core roles
+## 1.1 Responsibility split
 
-### ChatGPT Web
+### ChatGPT Web — teacher and semantic reasoning
 
-ChatGPT Web is the **teacher and reasoning engine**.
-
-It is responsible for:
+ChatGPT is responsible for:
 
 - teaching the current lesson;
-- applying the relevant Teaching Method;
-- interpreting the Session Brief;
-- using the Pause Checkpoint when resuming;
+- following Teacher Role + the correct Teaching Method;
+- interpreting the current Session Brief;
 - creating semantic Pause Checkpoints;
-- analyzing the completed lesson;
-- producing and durably storing the ANALYZE result required by the END pipeline;
-- updating Review Ledger through the approved UPDATE workflow;
-- applying Review Planner to the next Base Lesson and current Review Ledger;
-- preparing and writing the next Session Brief.
+- analyzing a completed lesson;
+- producing the durable ANALYZE result;
+- applying UPDATE to Review Ledger;
+- applying Review Planner to the next Base Lesson + current Review Ledger;
+- preparing and writing the next Session Brief staging content.
 
-ChatGPT visible responses are **not** treated as machine-readable transaction results.
+ChatGPT-visible prose is never treated by the Extension as a machine transaction result.
 
-Where the workflow requires semantic interpretation of lesson content, that responsibility belongs to ChatGPT rather than the Extension.
+### Chrome Extension — orchestrator and verifier
 
-### Chrome Extension
+The Extension is responsible for:
 
-The Extension is the **orchestrator**.
+- lifecycle/state orchestration;
+- exact Project/chat navigation;
+- creating/resuming the correct conversation;
+- sending control instructions and approved links;
+- preemptive Listening Mask;
+- Voice START/STOP;
+- starting/stopping Supervisor;
+- reading/writing deterministic Google Sheet state;
+- verifying durable commit markers;
+- Session Brief promotion;
+- crash recovery;
+- best-effort chat rename.
 
-It is responsible for:
+The Extension must not infer semantic learner state from the conversation.
 
-- opening the configured ChatGPT Project;
-- creating a new conversation when a new session starts;
-- reopening the exact conversation when resuming;
-- sending required links and control instructions;
-- arming the Listening Mask before protected content can render;
-- waiting for ChatGPT to finish processing before Voice starts;
-- starting and stopping Voice;
-- starting and stopping the Supervisor;
-- sequencing START, PAUSE, END, ANALYZE, UPDATE and Review Planner;
-- verifying durable writes before advancing workflow;
-- keeping a local recovery journal;
-- recovering after refresh/restart;
-- attempting chat rename at the end of the pipeline.
+### Google Sheets — durable runtime truth
 
-The Extension must remain a thin coordinator. It must not infer semantic learning state from the conversation and must not become a second tutoring or reasoning engine.
+Google Sheets stores all authoritative runtime learning state.
 
-### Google Sheets
+If local Extension state conflicts with committed Sheet state, Sheet state wins.
 
-Google Sheets is the **durable source of truth** for runtime learning state.
+### Google Drive / static reference documents
 
-If local Extension state conflicts with durable Sheet state, the system reconciles against the durable Sheet state.
+Google Drive may hold static instruction documents such as Teacher Role or Teaching Methods.
 
-Local Extension storage may say what the workflow was attempting to do, but durable Sheet state decides what has actually committed.
-
-### Google Drive / reference documents
-
-Google Drive is used for stable reference assets that are naturally document/file based, such as curriculum source files or teaching instruction documents.
-
-Live session state must not be moved back and forth between Drive and Sheets without a clear reason.
-
-The separation is:
-
-- static/reference assets → Drive;
-- live/durable learning state → Sheets.
+It is **not** used as a second runtime state store.
 
 ### ChatGPT Project
 
-The configured ChatGPT Project provides the teaching environment and conversational continuity.
+All learning conversations live inside one configured ChatGPT Project.
 
-One EnPal learning session maps to one ChatGPT conversation.
+Machine identity uses:
 
-Machine identity is based on the stable session identity and exact conversation URL, not the human-readable chat title.
+```text
+session_id + exact chat_url
+```
 
----
-
-## 1.2 Verified platform capabilities carried into V1
-
-The following capabilities have already been demonstrated in spikes and are treated as valid architectural inputs:
-
-- create a new conversation inside the configured ChatGPT Project;
-- send control text automatically;
-- start and stop Voice through semantic/trusted interaction;
-- receive conversation activity in realtime for Supervisor use;
-- apply a Listening Mask;
-- rename a Project conversation;
-- operate the existing MV3 Extension shell and Side Panel.
-
-These capabilities still require production integration and regression testing. They are not considered finished production features merely because their feasibility was proven.
+Chat title is human metadata only.
 
 ---
 
-## 1.3 Explicit V1 non-goals
+## 1.2 Runtime component boundaries
+
+V1 uses these conceptual components:
+
+### Workflow Orchestrator
+
+Owns the deterministic state machine and decides the next legal phase.
+
+It contains no ChatGPT DOM selectors and no semantic learning logic.
+
+### ChatGPT Adapter
+
+The only component allowed to know ChatGPT Web UI details.
+
+It owns:
+
+- Project navigation;
+- new-chat creation;
+- exact-chat opening;
+- semantic control-message injection;
+- idle detection;
+- Voice UI control;
+- rename behavior;
+- realtime conversation feed hooks.
+
+Changes to ChatGPT DOM/UI should normally require changes only inside this adapter layer.
+
+### Google Sheets Client
+
+Owns:
+
+- Extension OAuth access to Google Sheets;
+- exact configured spreadsheet IDs;
+- bounded reads;
+- deterministic writes;
+- commit verification;
+- Session Brief atomic promotion.
+
+### Recovery Journal
+
+Uses `chrome.storage.local`.
+
+Stores workflow intent and recoverable machine state, not authoritative learning truth.
+
+### Supervisor Controller
+
+Owns Supervisor lifecycle, realtime feed filtering, decision delivery, and degraded-mode status.
+
+### Listening Mask Controller
+
+Owns preemptive masking and restoration without embedding mask behavior throughout the workflow engine.
+
+### Side Panel UI
+
+Shows learner-facing state and legal actions only.
+
+---
+
+## 1.3 Manifest V3 execution rule
+
+Manifest V3 service workers are treated as ephemeral.
+
+Correctness must never depend on:
+
+- one long-running in-memory service-worker function;
+- a long timer;
+- a service worker remaining alive throughout a lesson or END pipeline.
+
+Every critical transition must be reconstructable from:
+
+```text
+durable Sheet state
++
+chrome.storage.local recovery journal
+```
+
+The workflow may pause when no extension context is alive, but reopening EnPal must deterministically resume from the first incomplete safe phase.
+
+---
+
+## 1.4 Pre-implementation platform gates
+
+Before the full workflow engine is implemented, the target production environment must prove:
+
+1. ChatGPT Project can open/read every configured instruction/data file needed by START/RESUME.
+2. ChatGPT can perform the required writes to the configured Google Sheets from the target Project.
+3. Those routine EnPal writes do not require a manual approval dialog on every lesson transaction.
+4. Extension OAuth can read/write the configured Google Sheets.
+5. Voice START/STOP and Listening Mask work in the same supported Chrome/ChatGPT environment.
+
+If any gate fails, the architecture must be revisited. V1 must not fall back to scraping assistant output.
+
+---
+
+## 1.5 Explicit V1 non-goals
 
 V1 does not include:
 
-- a separate backend/controller server;
-- a separate Observer LLM service;
-- DOM scraping of assistant output to obtain structured results;
-- coordinate-based UI automation;
-- dynamic regeneration of the core curriculum after every session;
+- backend/server;
+- event sourcing;
+- distributed transaction engine;
+- generalized multi-user architecture;
+- historical Session Brief archive;
+- telemetry platform;
 - automatic external podcast/YouTube ingestion;
-- a large admin/dashboard product inside the learner runtime;
-- Project Control as part of the learner runtime;
-- event sourcing or a full replay architecture;
-- distributed transactions across all Sheets.
-
-The Supervisor is a runtime monitoring role governed by its own contract; it is not an independent backend Observer system.
+- complex onboarding wizard;
+- admin dashboard in learner runtime;
+- dynamic rewriting of core curriculum;
+- Project Control in learner runtime.
 
 ---
 
-# 2. Data
+# 2. Data and Authority
 
-V1 keeps the data model small and assigns one clear responsibility to each store.
+## 2.1 Curriculum Sheet — canonical curriculum source
 
-## 2.1 EnPal Database
+V1 uses **one dedicated Google Sheet as the canonical curriculum source**.
+
+It is configured by exact spreadsheet ID.
+
+Each Base Lesson is one curriculum record with stable identity such as:
+
+- `curriculum_version`;
+- `curriculum_sequence`;
+- `lesson_id`;
+- canonical lesson fields required by the shared logical lesson model.
+
+Exact columns are an implementation-plan detail.
+
+The Curriculum Sheet is fixed/read-mostly during normal learning.
+
+The Extension determines the next Base Lesson from:
+
+```text
+fixed curriculum sequence
++
+durable completed Sessions
+```
+
+The next Base Lesson is never selected freely by ChatGPT.
+
+Legacy Base Lesson JSON files on Drive are migration/reference artifacts only and are not authoritative once V1 is implemented.
+
+All runtime curriculum access uses the exact configured Curriculum Sheet ID. Runtime discovery by filename/title is forbidden.
+
+---
+
+## 2.2 EnPal Database — Sessions and operational history
 
 The EnPal Database is the durable operational Google Sheet.
 
-It stores the history and state of learning sessions.
+A Session record must represent enough information for:
 
-At minimum, a Session record must be able to represent:
-
-- stable session identity;
-- curriculum/base-lesson identity;
-- session lifecycle state;
-- exact ChatGPT conversation URL;
+- stable `session_id`;
+- bound curriculum identity;
+- lifecycle state;
+- exact `chat_url` once bound;
 - completed lesson result;
 - Pause Checkpoint when applicable;
-- durable ANALYZE completion/result or equivalent verified marker;
-- enough durable status for recovery and idempotency.
+- durable ANALYZE result/completion;
+- pipeline recovery markers;
+- idempotency.
 
-The exact column schema is an implementation detail and is not frozen by this document.
+Exact columns are not frozen by this spec.
+
+### One-active-session invariant
+
+At most one Session may be non-terminal for normal learner operation.
+
+Equivalent active lifecycle states may include:
+
+```text
+STARTING
+IN_PROGRESS
+PAUSED
+PROCESSING
+```
+
+If durable data contains more than one active Session, EnPal enters a consistency error and does not guess which one to use.
 
 ### Pause Checkpoint
 
-A Pause Checkpoint belongs to the current Session record.
+Pause Checkpoint is semantic learning state describing:
 
-It represents:
-
-- what has already been covered;
-- what is currently unfinished;
+- what was covered;
+- what is unfinished;
 - what remains;
 - where teaching should continue.
 
-The Pause Checkpoint is semantic learning state. ChatGPT creates it from the active lesson conversation and writes it to the current Session record.
+ChatGPT creates and writes the checkpoint to the active Session.
 
-The Extension triggers this operation and verifies that the durable write succeeded. It does not derive the checkpoint itself.
+The Extension only triggers and verifies that write.
 
 ### Legacy data authority
 
-The existing EnPal Database may still contain legacy areas such as generalized Learner state, Target Bank, old curriculum-position fields, or other deprecated session-preparation structures.
-
-Those legacy areas are **not authoritative for V1 runtime** unless they are explicitly migrated into the contracts defined by this spec.
-
-Implementation must not silently reuse legacy fields merely because they already exist.
+Legacy generalized Learner state, Target Bank, deprecated preparation areas, and old curriculum-position fields are non-authoritative unless explicitly migrated into this V1 contract.
 
 ---
 
-## 2.2 Session Brief Sheet
+## 2.3 Session Brief Sheet
 
-Session Brief is a **separate Google Sheet**.
+Session Brief is a separate Google Sheet and contains only the lesson currently ready/in progress.
 
-It contains only the lesson that is currently ready to be learned or, while paused, the lesson currently in progress.
+It is not a historical store.
 
-It is **not** a history store.
+### Identity
 
-The Session Brief must contain enough stable identity to prove which intended session/base lesson it belongs to. Exact field names are left to implementation.
+A Session Brief is identified by curriculum identity, not by a future Session ID:
 
-The Session Brief should be human-readable and ChatGPT-readable, organized as clear sections/key-value content rather than as a large opaque JSON blob.
+```text
+curriculum_version
++ curriculum_sequence
++ lesson_id
+```
 
-Conceptually it contains:
+The next Session Brief is created before the next `session_id` exists.
 
-- identity linkage;
+At START, the new Session is created and bound to the verified ACTIVE Session Brief identity.
+
+### Canonical content
+
+The Brief uses the canonical logical lesson model and conceptually includes:
+
 - Primary Skill;
 - Communicative Goal;
-- Situation / context;
-- lesson focus;
-- target performance;
-- lesson flow where applicable;
-- a separate Review section.
+- Focus;
+- Situation/context;
+- Target Performance;
+- lesson-flow information where required;
+- separate Review Focus with stable Review Item IDs.
 
-The Review section must remain distinguishable from the fixed core lesson.
+The Review layer must remain distinguishable from fixed core learning.
 
-### Session Brief lifecycle
+### ACTIVE + _STAGING
 
-Before the first ever START, setup/bootstrap must produce the first ready Session Brief.
+The Session Brief Sheet has two functional areas/tabs:
 
-During a session and during PAUSE, the current Session Brief remains unchanged.
+```text
+ACTIVE
+_STAGING
+```
 
-During END, ChatGPT prepares and writes the next Session Brief.
+`ACTIVE` is the only brief used by START/RESUME.
 
-The Extension verifies that the new brief is complete, correctly linked to the intended next lesson/session, and ready before workflow advances.
+`_STAGING` is temporary construction space and is not lesson history.
 
-The existing valid Session Brief is replaced only after the new brief is complete and ready. A partial preparation must never destroy the current valid brief.
+During END:
 
-Old Session Briefs are not retained here; session history belongs in the EnPal Database.
+1. ChatGPT writes the complete next brief to `_STAGING`.
+2. Extension verifies required structure + curriculum identity + ready marker.
+3. Extension promotes `_STAGING` to `ACTIVE` using one atomic Google Sheets batch update.
+4. The same promotion clears/resets staging.
+5. If promotion fails, the previous ACTIVE brief remains authoritative.
+
+This preserves the invariant that a partially written new brief never destroys the current valid brief.
+
+During PAUSE, ACTIVE remains unchanged.
 
 ---
 
-## 2.3 Review Ledger
+## 2.4 Review Ledger
 
-Review Ledger is the long-term personalization state.
+Review Ledger is the sole long-term personalization/review state.
 
-It records what needs review and how review evolves over time.
+Review Planner reads it only after UPDATE has durably completed and been verified.
 
-It is the primary persistent state used by Review Planner.
-
-V1 does not maintain a second generalized learner-state/Target-Bank system in parallel.
+V1 does not maintain a parallel generalized Target Bank.
 
 ---
 
-## 2.4 Local Extension storage
+## 2.5 Local recovery journal
 
-`chrome.storage.local` is a **recovery journal**, not a second database.
+`chrome.storage.local` may contain:
 
-It may store items such as:
-
-- current workflow state;
-- current pipeline phase;
-- active session identity;
-- active chat URL;
-- active tab;
+- app/workflow state;
+- current phase;
+- active `session_id`;
+- bound/pending `chat_url`;
+- pending ChatGPT `tab_id`;
 - pending operation;
-- last recoverable error.
+- machine error code.
 
-Local state helps the Extension know what it was attempting.
+It is not authoritative learning state.
 
-It does not have authority to declare a durable learning transaction completed if the corresponding Sheet state is not committed.
-
----
-
-# 3. START
-
-The learner interacts with a single START action.
-
-START has two modes internally:
-
-1. resume a paused session;
-2. start a new prepared session.
-
-The learner does not choose between two different buttons.
+Authentication tokens must not be stored as ordinary recovery-journal values.
 
 ---
 
-## 3.1 START priority
+# 3. Setup and Authentication
 
-START follows this priority:
+## 3.1 App setup state
 
-1. if an incomplete processing pipeline requires recovery, recover it first;
-2. else if a PAUSED session exists, resume it;
-3. else start the ready Session Brief as a new session.
+Before READY, EnPal may be in:
 
-A paused lesson always takes precedence over a future prepared lesson.
+```text
+SETUP_REQUIRED
+```
 
----
+Setup must establish:
 
-## 3.2 Required teaching context
+- ChatGPT Project ID/URL;
+- Curriculum Sheet ID;
+- EnPal Database ID;
+- Session Brief Sheet ID;
+- Review Ledger ID;
+- Teacher Role URL;
+- Speaking Teaching Method URL;
+- Listening Teaching Method URL;
+- Extension Google authorization;
+- verified ChatGPT Google access/write capability;
+- first ACTIVE Session Brief.
 
-Before Voice starts, ChatGPT must read the authoritative material for the lesson.
+After successful setup/bootstrap:
 
-For both a new START and a RESUME, the Extension provides separate configured links/instructions for:
+```text
+SETUP_REQUIRED → READY
+```
 
-- Teacher Role Instructions;
-- the correct Teaching Method for the Session Brief's Primary Skill;
-- the current Session Brief.
-
-For RESUME, it additionally provides the EnPal Database link/instruction needed to read the Pause Checkpoint for the active session.
-
-The Extension sends **links plus precise reading instructions**, not unexplained links.
-
-The Extension does not determine readiness by parsing ChatGPT's prose response. It waits for the ChatGPT interaction to finish and return to idle.
-
-This idle state is a V1 readiness heuristic, not proof by itself that external access succeeded. File accessibility is therefore an explicit setup/E2E acceptance gate.
-
----
-
-## 3.3 New session
-
-For a new lesson, the Extension:
-
-1. reads the ready Session Brief identity and required durable state;
-2. creates or reserves the durable Session identity;
-3. verifies that the Session Brief corresponds to the intended base lesson/session;
-4. opens the configured ChatGPT Project;
-5. creates exactly one new conversation;
-6. captures and persists the exact conversation URL;
-7. if the Session Brief requires protected Listening behavior, arms the Listening Mask **before** sending any control message that could expose protected content;
-8. sends Teacher Role, the correct Teaching Method, Session Brief links, and precise reading instructions;
-9. waits until ChatGPT has finished processing and is idle;
-10. activates the Supervisor;
-11. starts Voice;
-12. enters the learning state.
-
-The Extension must not start Voice before ChatGPT has finished reading/processing the required material.
-
-START does not run Review Planner. The Session Brief has already been prepared before START.
+A complex onboarding wizard is not required.
 
 ---
 
-## 3.4 Resume after PAUSE
+## 3.2 Extension Google OAuth
 
-Resume uses the exact saved conversation URL.
+The Extension uses Chrome Identity OAuth for Google Sheets access.
 
-The Extension:
+V1 architecture assumes:
 
-1. opens the existing conversation;
-2. verifies it is the intended session;
-3. verifies the current Session Brief identity matches the paused session/base lesson;
-4. if protected Listening behavior applies, restores/arms the Listening Mask before sending any control message that could expose protected content;
-5. sends Teacher Role Instructions;
-6. sends the correct Teaching Method;
-7. sends the current Session Brief;
-8. sends the EnPal Database link/instruction for the Pause Checkpoint of the active session;
-9. asks ChatGPT to restore lesson context and continue from the checkpoint;
-10. waits until ChatGPT is idle;
-11. reactivates the Supervisor;
-12. starts Voice;
-13. continues learning in the same conversation.
+- `chrome.identity.getAuthToken()`;
+- an explicit `oauth2` client/scopes configuration in `manifest.json`;
+- Sheets scopes limited to what V1 actually needs;
+- interactive authorization initiated by an explained user action during setup;
+- normal runtime token retrieval is non-interactive;
+- tokens rely on the Identity API token cache rather than being copied into `chrome.storage.local`.
 
-The Session Brief is not regenerated merely because the learner paused.
+The Extension does not require Google Drive API access merely to read Teacher Role/Teaching Method documents; ChatGPT reads those configured reference links.
 
 ---
 
-# 4. PAUSE
+## 3.3 Exact-source allowlist and trust hierarchy
 
-PAUSE temporarily stops the current lesson without completing it.
+Production configuration is an allowlist of exact Project/file IDs or URLs.
 
-The PAUSE workflow:
+EnPal must not accept an arbitrary Drive/Sheet link from:
 
-1. targets the exact active session and conversation;
-2. stops Voice;
-3. stops the Supervisor;
-4. keeps the Listening Mask protection in place where necessary;
-5. sends the PAUSE control instruction to ChatGPT in the same lesson conversation;
-6. ChatGPT creates the semantic Pause Checkpoint and writes it to the active Session record;
-7. the Extension verifies that the checkpoint and paused durable state were committed;
-8. the current Session Brief remains unchanged;
-9. the Extension records enough local recovery information to reopen the same session safely.
+- assistant output;
+- page content;
+- learner text;
+- retrieved learning data.
 
-PAUSE must not:
+Trust order:
 
-- complete the session;
+1. **Control sources** — approved Teacher Role, Teaching Method, Skill/control instructions.
+2. **Learning-data sources** — Curriculum, Session Brief, Review Ledger, Session records.
+3. **Conversation content** — learner/teacher interaction.
+
+Learning-data text is treated as data and may not override higher-priority control instructions.
+
+---
+
+# 4. START
+
+START automatically chooses between recovery, resume, and a new session.
+
+Priority:
+
+1. incomplete recoverable pipeline;
+2. existing PAUSED session;
+3. new ACTIVE Session Brief.
+
+---
+
+## 4.1 Required teaching context
+
+Before Voice begins, the Extension sends separate approved links/instructions for:
+
+- Teacher Role;
+- correct Teaching Method for Primary Skill;
+- ACTIVE Session Brief.
+
+On RESUME it additionally instructs ChatGPT to read the Pause Checkpoint from the active Session record.
+
+The Extension waits for ChatGPT to become idle; it does not parse the assistant prose.
+
+Idle is only a V1 readiness heuristic. Actual file accessibility is proven by setup/E2E gates.
+
+---
+
+## 4.2 New session flow
+
+For a new session:
+
+1. Verify there is no other active Session.
+2. Read and verify ACTIVE Session Brief identity.
+3. Determine that this Brief is the deterministic next curriculum lesson.
+4. Create one Session stub with stable `session_id`, bound lesson identity, and status `STARTING`.
+5. Record pending start state in the local journal.
+6. Open the configured ChatGPT Project in an EnPal-owned tab and record its `tab_id`.
+7. Create a new conversation.
+8. For protected Listening, arm the Listening Mask before any control message can expose protected content.
+9. Send required teaching-context links/instructions.
+10. Capture exact conversation URL.
+11. Persist `session_id + chat_url` durably and verify.
+12. Mark the Session `IN_PROGRESS`.
+13. Start Supervisor; failure follows the degraded-mode policy in Section 7.
+14. Start Voice.
+15. App state becomes LEARNING.
+
+START does not run Review Planner.
+
+---
+
+## 4.3 Chat-creation crash recovery
+
+V1 guarantees **one authoritative active chat binding**, not literal exactly-once physical chat creation on the external ChatGPT website.
+
+### Before durable chat_url binding
+
+If EnPal restarts while a Session is `STARTING` and has no committed `chat_url`:
+
+1. Read the local pending `tab_id`.
+2. If that EnPal-owned tab still exists and the ChatGPT Adapter can safely confirm it is the pending Project conversation, capture and persist its URL.
+3. Otherwise, do not guess.
+4. Create a replacement conversation using the **same `session_id` and same lesson identity**.
+5. Bind only the first safely verified conversation URL to the Session.
+
+An earlier unbound conversation may remain as an orphan ChatGPT chat.
+
+That orphan is not an EnPal Session and must never advance curriculum or receive END processing.
+
+### After durable chat_url binding
+
+Once the Session has a verified `chat_url`, all retries/resumes reuse that exact URL and must not create another conversation.
+
+The V1 invariant is therefore:
+
+```text
+one logical Session
+→ one authoritative bound chat_url
+```
+
+rather than an unimplementable promise that no orphan external chat can ever exist.
+
+---
+
+## 4.4 Resume after PAUSE
+
+RESUME:
+
+1. Opens exact saved `chat_url`.
+2. Verifies URL matches active Session.
+3. Verifies ACTIVE Session Brief identity matches the Session's bound lesson.
+4. Re-arms Listening Mask before control messages when required.
+5. Sends Teacher Role + correct Teaching Method + ACTIVE Session Brief.
+6. Sends checkpoint read/restore instruction.
+7. Waits for ChatGPT idle.
+8. Starts Supervisor if available.
+9. Starts Voice.
+10. Marks Session IN_PROGRESS / app LEARNING.
+
+No new chat is created.
+
+---
+
+# 5. PAUSE
+
+PAUSE:
+
+1. Verifies active `session_id + chat_url`.
+2. Stops Voice.
+3. Stops Supervisor.
+4. Keeps Listening Mask protection where required.
+5. Sends PAUSE control to the same conversation.
+6. ChatGPT creates and writes semantic Pause Checkpoint to the active Session.
+7. Extension verifies checkpoint + PAUSED durable state.
+8. ACTIVE Session Brief remains unchanged.
+9. Local journal records recoverable state.
+
+PAUSE does not:
+
+- analyze final performance;
+- update Review Ledger;
 - advance curriculum;
-- run ANALYZE;
-- run UPDATE;
-- run Review Planner;
-- replace the Session Brief;
-- create a new conversation.
+- create a new Session;
+- replace Session Brief;
+- rename chat.
 
-If the durable checkpoint cannot be verified, the Extension must not pretend the session is safely paused. Recovery must retry the incomplete PAUSE operation against the same session/chat.
-
-For Listening sessions, PAUSE must not accidentally expose content that the learner was intentionally prevented from seeing.
+If checkpoint persistence cannot be verified, EnPal enters recoverable ERROR rather than claiming a safe pause.
 
 ---
 
-# 5. END
+# 6. END
 
-END closes the learning session and prepares the next one.
+END performs post-learning work in the same bound ChatGPT conversation.
 
-All post-lesson reasoning runs in the **same ChatGPT conversation** after Voice has stopped.
-
-The canonical V1 pipeline is:
+Canonical order:
 
 ```text
 END
 → stop Voice
 → stop Supervisor
 → ANALYZE
-→ persist + verify ANALYZE result
-→ UPDATE
-→ verify Review Ledger update
+→ persist + verify ANALYZE
+→ UPDATE Review Ledger
+→ verify UPDATE
+→ determine next Base Lesson
 → Review Planner
-→ prepare + write next Session Brief
-→ verify Session Brief ready
-→ complete current Session
+→ write next Brief to _STAGING
+→ verify staging
+→ atomically promote to ACTIVE
+→ mark current Session COMPLETED
 → best-effort rename
 → READY
 ```
 
-Each durable phase is independently verifiable. V1 does not require a distributed transaction across all Sheets.
+Each phase has an independently verifiable durable boundary.
 
 ---
 
-## 5.1 ANALYZE
+## 6.1 ANALYZE
 
-ANALYZE extracts the approved learning evidence and session result from the completed conversation.
+ANALYZE evaluates only pedagogical lesson evidence.
 
-Its detailed rubric lives in the ANALYZE Skill artifact.
+ChatGPT writes the required ANALYZE result/completion to the active Session record.
 
-The Extension does not scrape the visible assistant response for the result.
-
-After ANALYZE is produced, ChatGPT writes the required ANALYZE result or equivalent durable completion state to the active Session record.
-
-The Extension verifies that durable state before UPDATE is allowed to proceed.
-
-This provides a recovery boundary between ANALYZE and UPDATE.
+Extension verifies the durable boundary before UPDATE.
 
 ---
 
-## 5.2 UPDATE
+## 6.2 UPDATE
 
-UPDATE applies the approved post-session changes, especially Review Ledger transitions.
+UPDATE consumes verified ANALYZE evidence and applies the approved Review Ledger transition rules.
 
-UPDATE consumes the verified ANALYZE evidence according to the UPDATE contract.
-
-Review Planner must not run against stale review state.
-
-Therefore UPDATE must finish, write Review Ledger, and have the affected durable state verified before Review Planner proceeds.
-
-Its detailed rules live in the UPDATE Skill artifact.
+Review Planner must not run until Review Ledger writes are verified.
 
 ---
 
-## 5.3 Review Planner
+## 6.3 Review Planner
 
 Review Planner takes only:
 
-1. the next fixed Base Lesson Brief;
+1. the deterministic next Base Lesson from Curriculum Sheet;
 2. the current verified Review Ledger.
 
-Completed-session evidence reaches Review Planner **indirectly** through the verified UPDATE to Review Ledger.
+Completed-session evidence reaches Planner indirectly through UPDATE.
 
-Review Planner selects review material that naturally fits the next lesson.
-
-It does **not** choose a different core curriculum lesson.
-
-It produces the personalized review layer for the next Session Brief.
-
-Its detailed selection rules live in the Review Planner Skill artifact.
+Planner may add Review Focus but may not replace/change the core curriculum lesson.
 
 ---
 
-## 5.4 Preparing the next Session Brief
+## 6.4 Session Brief creation
 
-END prepares the complete next Session Brief before the current session is considered fully closed.
+ChatGPT writes the next complete brief to `_STAGING`.
 
-The next brief combines:
+Extension validates machine-checkable structure and identity only; it does not parse assistant prose or perform semantic lesson design.
 
-- the next fixed Base Lesson;
-- the selected review layer.
+After verification, Extension atomically promotes staging to ACTIVE.
 
-The Review content remains a distinct section.
-
-ChatGPT prepares and writes the Session Brief directly to the Session Brief Sheet.
-
-The Extension does not parse ChatGPT output to reconstruct the brief. It verifies the durable Session Brief state instead.
-
-The current valid Session Brief remains intact until the replacement is complete and verified.
-
-Only then is the new Session Brief considered ready for the next START.
+Only then may the current Session become COMPLETED.
 
 ---
 
-## 5.5 Completion and rename
-
-The current Session is completed only after the required durable post-session work and next Session Brief preparation have succeeded.
-
-Chat rename happens at the end of the core pipeline.
+## 6.5 Rename
 
 Rename is:
 
-- human-facing metadata;
-- best-effort;
+- after core completion;
+- best effort;
 - rate-limit aware;
 - non-blocking.
 
-Rename failure must never roll back completed learning data or prevent the app from returning to READY.
-
-Resume/recovery always uses the exact conversation URL, never the title.
+Rename failure never changes learning state back to ERROR.
 
 ---
 
-# 6. Supervisor
+# 7. Supervisor
 
-The Supervisor exists only while the learner is actively learning.
+Supervisor is a **quality guardrail**, not a correctness-critical dependency.
 
 Lifecycle:
 
 ```text
-START / RESUME
-→ Supervisor ON
-
-PAUSE or END
-→ Supervisor OFF
+START / RESUME → attempt Supervisor ON
+PAUSE / END    → Supervisor OFF
 ```
 
-At minimum, the Supervisor receives:
+Supervisor receives:
 
-- the current Session Brief;
-- the correct Teaching Method;
-- the realtime conversation feed for the active lesson.
+- ACTIVE Session Brief;
+- correct Teaching Method;
+- filtered realtime conversation feed.
 
-The Supervisor may return only:
+It may return:
 
 - `CONTINUE`;
 - `NUDGE`;
 - `CORRECT_COURSE`.
 
-For `NUDGE` or `CORRECT_COURSE`, the Supervisor produces one short actionable instruction.
+NUDGE/CORRECT_COURSE carries one short actionable instruction to the active Teacher conversation.
 
-The Extension/runtime delivers that instruction to the active Teacher conversation so ChatGPT can apply it without changing the lesson identity or core objective.
+Supervisor may not:
 
-The exact transport mechanism is an implementation detail.
+- change Base Lesson;
+- change Communicative Goal;
+- advance curriculum;
+- mutate durable learning state.
 
-The Supervisor may influence **how the teacher proceeds**, but it may not:
+## 7.1 Supervisor failure policy — fail open
 
-- change the fixed curriculum lesson;
-- change the lesson's core Communicative Goal;
-- mark curriculum complete;
-- directly mutate durable learning state;
-- independently select the next lesson.
+If Supervisor cannot initialize or fails mid-lesson:
 
-Think of the Supervisor as a live teaching guardrail, not a second teacher or curriculum planner.
+- lesson may continue;
+- Teacher Role + Teaching Method + Session Brief remain authoritative;
+- Voice is not stopped solely because Supervisor failed;
+- no fake Supervisor decision is generated;
+- Supervisor status is recorded as degraded/unavailable;
+- END/ANALYZE still runs normally.
 
----
-
-# 7. Curriculum
-
-The core curriculum is prebuilt and stable.
-
-V1 separates **curriculum progression** from **personalization**.
-
-Base Lesson, Review Planner, Session Brief, and downstream lesson-analysis contracts must share one canonical logical lesson model. Their storage representation may differ, but field meaning and lesson semantics must not drift between artifacts.
-
-## 7.1 Core progression
-
-The Extension determines the next Base Lesson from:
-
-- the fixed curriculum sequence;
-- durable completed-session history.
-
-The next lesson is not chosen freely by ChatGPT.
-
-Progression must be deterministic: recovery or retry must not advance the curriculum twice.
+Supervisor is retried only through normal lifecycle opportunities such as RESUME/new START; V1 requires no complex self-healing loop.
 
 ---
 
-## 7.2 Personalization
+# 8. Listening Mask
 
-Personalization is primarily performed through Review Planner.
+For a lesson that requires protected Listening:
 
-The next Session Brief therefore has two conceptual layers:
+- mask must be armed **before** any control message that could render protected content;
+- mask remains effective during the protected learning interval;
+- PAUSE must not expose protected content;
+- controls needed to operate Voice/EnPal remain usable;
+- failure to arm required mask is fail-closed.
+
+Listening Mask behavior is isolated in its controller/adapter rather than mixed into lesson reasoning.
+
+---
+
+# 9. Control-Message and Evidence Boundary
+
+The same ChatGPT conversation contains both learning interaction and EnPal control traffic.
+
+Therefore every EnPal-generated administrative message must carry a reserved internal classification such as:
 
 ```text
-fixed Base Lesson
-+
-personalized Review section
-=
-Session Brief
+ENPAL_CONTROL
 ```
 
-The review layer may adapt to learner evidence, but it must not silently replace the main curriculum objective.
+with a control type/session identity in its envelope.
+
+Examples include:
+
+- START/RESUME setup instructions;
+- PAUSE command;
+- Supervisor instruction;
+- END/ANALYZE/UPDATE/Planner commands.
+
+These messages are:
+
+- not learner evidence;
+- not teacher-performance evidence by themselves;
+- excluded from Supervisor pedagogical feed;
+- excluded from ANALYZE evidence.
+
+Teacher/learner turns resulting from real lesson interaction remain pedagogical evidence.
+
+The exact wire syntax is defined in the control-message contract, but classification must be deterministic and must not rely on natural-language guessing.
 
 ---
 
-## 7.3 First lesson bootstrap
+# 10. Recovery and Failure Policy
 
-Before the learner can use START for the first time, setup/bootstrap must create the first ready Session Brief.
-
-START should not contain special curriculum-planning logic for the first lesson.
-
----
-
-# 8. Recovery and Reliability
-
-EnPal V1 must be recoverable without creating duplicate learning state.
-
-The central rule is:
+Central rule:
 
 > Local state records what EnPal was trying to do. Google Sheets records what durably happened.
 
----
+On restart/reopen:
 
-## 8.1 Recovery after restart or refresh
+1. read local recovery journal;
+2. read relevant durable Sheets;
+3. validate one-active-session invariant;
+4. reconcile by Session identity and phase;
+5. continue from the first incomplete safe phase.
 
-On Extension restart/reopen:
-
-1. read the local recovery journal;
-2. read the relevant durable Sheet state;
-3. reconcile by session identity and workflow phase;
-4. continue from the first safe incomplete phase.
-
-A phase already durably committed must not be repeated merely because local state is stale.
-
-A locally marked phase must not be treated as completed if the durable state does not confirm it.
-
-Recovery must recognize durable boundaries for at least:
-
-- chat/session identity persistence;
-- PAUSE checkpoint persistence;
-- ANALYZE persistence;
-- UPDATE/Review Ledger persistence;
-- Session Brief readiness;
-- current-session completion.
-
-Exact marker names are implementation details.
+Committed phases are never repeated merely because local state is stale.
 
 ---
 
-## 8.2 Idempotency
+## 10.1 Required durable boundaries
 
-Critical workflows must be safe to retry.
+Recovery must distinguish at least:
 
-At minimum, recovery must prevent:
+- Session stub created;
+- authoritative chat URL bound;
+- PAUSE checkpoint committed;
+- ANALYZE committed;
+- UPDATE committed;
+- Session Brief staging verified/promoted;
+- Session COMPLETED.
 
-- duplicate Session records for the same logical session;
-- duplicate ChatGPT conversations caused by retrying START;
-- duplicate Pause Checkpoints being treated as new sessions;
-- duplicate ANALYZE application;
-- duplicate Review Ledger transitions;
-- duplicate curriculum advancement;
-- accidental replacement of a valid Session Brief with an incomplete one.
-
-Exact markers and field names are implementation details to be defined in the workflow contracts and implementation plan.
+Exact field/marker names are implementation details.
 
 ---
 
-## 8.3 Active-conversation safety
+## 10.2 Fail-closed vs fail-open
 
-PAUSE and END must operate only on the saved active session and exact conversation URL.
+### Fail closed
 
-If the user happens to be viewing another ChatGPT conversation, EnPal must not pause, end, or analyze that unrelated conversation.
+Do not start/continue the affected phase when:
 
----
+- required Sheet/reference source cannot be accessed;
+- required durable write cannot be verified;
+- active chat identity is wrong/unknown;
+- multiple active Sessions exist;
+- required Listening Mask cannot be armed;
+- Session Brief identity does not match expected curriculum/session binding;
+- required setup/platform capability is missing.
 
-## 8.4 ChatGPT UI / Voice failure
+### Fail open
 
-A failure to start Voice must not create a second session or second conversation.
+The core lesson/session may continue when:
 
-A failure to stop Voice must block post-session analysis until Voice is confirmed stopped.
-
-UI automation should use semantic elements and verified state rather than screen coordinates.
-
----
-
-## 8.5 Sheet / connected-app failure
-
-If required durable data cannot be confirmed:
-
-- preserve recoverable workflow state;
-- do not advance the curriculum;
-- do not mark the session fully completed;
-- do not destroy the current valid Session Brief;
-- allow safe retry/recovery.
-
-Visible ChatGPT prose alone is never proof that a durable write succeeded.
+- Supervisor fails;
+- chat rename fails.
 
 ---
 
-# 9. Canonical V1 Runtime Flow
+## 10.3 UI/Voice failure
 
-The complete intended loop is:
+Voice start failure:
+
+- keep the same Session/chat binding;
+- do not create another chat;
+- expose retry.
+
+Voice stop failure:
+
+- do not begin ANALYZE until stopped state is confirmed.
+
+If the ChatGPT Adapter cannot find the required semantic UI, it returns a structured failure and does not continue clicking blindly.
+
+---
+
+# 11. App States and Learner UX
+
+Learner-facing app states:
 
 ```text
-READY SESSION BRIEF
-        ↓
-START
-        ↓
-ARM MASK IF REQUIRED
-        ↓
-READ TEACHER ROLE + METHOD + SESSION BRIEF
-        ↓
-CHATGPT IDLE
-        ↓
-SUPERVISOR + VOICE
-        ↓
-LEARN
-   ↙                 ↘
-PAUSE                END
-  ↓                   ↓
-CHATGPT CHECKPOINT   ANALYZE
-  ↓                   ↓
-VERIFY              PERSIST + VERIFY
-  ↓                   ↓
-RESUME               UPDATE
-                      ↓
-                    VERIFY
-                      ↓
-               REVIEW PLANNER
-                      ↓
-            WRITE SESSION BRIEF
-                      ↓
-                    VERIFY
-                      ↓
-                  COMPLETE
-                      ↓
-                    READY
+SETUP_REQUIRED
+READY
+LEARNING
+PAUSED
+PROCESSING
+ERROR
 ```
 
-The canonical chat lifecycle is:
+PROCESSING locks conflicting learner actions.
 
-```text
-new session
-→ one new chat inside EnPal Project
-→ persist exact chat URL
-→ learn
-→ optional PAUSE / resume same chat
-→ END in same chat
-→ best-effort rename
-→ retain chat as learning history
-```
+During PROCESSING the learner cannot START another lesson or PAUSE the finished lesson.
 
----
+Learner-facing errors use simple language, for example:
 
-# 10. V1 Acceptance Gate
+- “Couldn’t save progress — Retry”
+- “Finishing your previous lesson”
+- “Resuming your paused lesson”
 
-V1 is not considered complete merely because individual components work.
-
-The minimum end-to-end proof must demonstrate:
-
-1. The configured ChatGPT Project can access the exact required Google Sheets/reference files and perform required durable writes without a manual approval step on every session. If this gate fails, the architecture must be revisited rather than replaced with assistant-output scraping.
-2. A new START creates one correct Project conversation and starts learning only after ChatGPT has read Teacher Role, the correct Teaching Method, and the current Session Brief.
-3. For protected Listening lessons, the Listening Mask is already active before any control message can expose protected material.
-4. PAUSE causes ChatGPT to create and durably write a usable checkpoint; later START resumes the same conversation at the correct learning point.
-5. ANALYZE is durably committed and verified before UPDATE.
-6. UPDATE writes and verifies Review Ledger before Review Planner runs.
-7. Review Planner consumes only the next Base Lesson Brief and current verified Review Ledger.
-8. ChatGPT writes the next Session Brief directly; the Extension verifies readiness without parsing assistant prose.
-9. A newly prepared Session Brief replaces the previous one only when complete and correctly linked to the intended next lesson/session.
-10. Curriculum advances exactly once per completed session.
-11. Supervisor is active only during learning, receives the required runtime context, and cannot change curriculum.
-12. Refresh/restart during an in-progress workflow recovers from the first incomplete durable phase without duplicate session/chat/data advancement.
-13. Rename failure does not break completion.
-14. No production workflow depends on parsing ChatGPT assistant output text.
-15. Legacy EnPal Database structures that are outside this spec do not influence V1 runtime behavior.
+Internal terms such as ANALYZE, UPDATE, Review Planner, pipeline phase, or OAuth error codes need not be exposed to the learner.
 
 ---
 
-# 11. Pre-Implementation Contract Alignment
+# 12. Security, Privacy, and Permissions
 
-Before implementation planning is considered executable, the separately versioned runtime artifacts must be checked against this spec.
+## 12.1 Data flow
 
-At minimum:
+V1 has no EnPal backend.
 
-- START must reflect the mandatory reading set and preemptive Listening Mask rule.
-- PAUSE must make ChatGPT responsible for semantic checkpoint creation/write and the Extension responsible for verification.
-- END must reflect the durable ANALYZE boundary and verified phase ordering.
-- Review Planner must retain its approved two-input contract: Base Lesson Brief + Review Ledger.
-- Session Brief consumers/producers must use the same canonical logical lesson model.
-- Deprecated PREPARE / Target Bank assumptions must not leak back into V1 runtime contracts.
+Full learning conversation remains in ChatGPT.
 
-This is documentation/contract alignment, not a new runtime subsystem.
+Google Sheets may store:
+
+- Session metadata/status;
+- learning summary/evidence required by contracts;
+- Pause Checkpoint;
+- Review Ledger;
+- Session Brief;
+- fixed Curriculum.
+
+Diagnostic/recovery state should store machine metadata, not full transcripts.
 
 ---
 
-# 12. Design Principles for Later Implementation
+## 12.2 Permission minimization
 
-When implementation details are not explicitly fixed by this spec, choose the simplest design that preserves these invariants:
+Request only permissions/hosts required by implemented V1 behavior.
 
-1. one session → one conversation;
-2. exact conversation URL → machine resume identity;
-3. fixed curriculum → deterministic progression;
-4. Session Brief → only the current/next lesson;
-5. Session Brief → stable identity linkage to its intended session/base lesson;
-6. Pause Checkpoint → semantic state created by ChatGPT and stored with the session;
-7. ANALYZE → durable verified boundary before UPDATE;
-8. Review Ledger → long-term review personalization;
-9. Review Planner → Base Lesson Brief + verified Review Ledger only;
-10. Sheets → durable truth;
-11. local storage → recovery journal;
-12. ChatGPT → teaching/reasoning and semantic writes;
-13. Extension → orchestration and verification;
-14. Listening protection → armed before protected content can render;
-15. Supervisor → teaching guardrail, not curriculum authority;
-16. no assistant-output scraping;
-17. no premature complexity without an observed failure or clear V1 requirement.
+The existing `debugger` permission may remain only if the verified trusted Voice-control mechanism still requires it.
 
-Any future change that breaks one of these principles is an architectural change and must update this spec before implementation.
+If retained:
+
+- isolate it behind Voice/ChatGPT Adapter behavior;
+- attach only to the exact active ChatGPT tab when required;
+- detach immediately after the trusted activation sequence;
+- do not use it as a general scraping/inspection mechanism.
+
+Remove unnecessary Google host permissions before release.
+
+---
+
+## 12.3 No arbitrary external control
+
+Only configured allowlisted control/data sources may be sent as authoritative EnPal links.
+
+Assistant-generated URLs are never promoted into trusted configuration automatically.
+
+---
+
+# 13. Testing and Acceptance
+
+V1 needs three test layers:
+
+1. **Unit tests** — workflow transitions, recovery decisions, identity rules.
+2. **Adapter/contract tests with fakes** — Sheets, ChatGPT Adapter, mask, Supervisor controller.
+3. **Live E2E smoke tests** — actual target ChatGPT Web + Google environment.
+
+The current extension shell tests are not sufficient for V1 acceptance.
+
+---
+
+## 13.1 Mandatory crash-window matrix
+
+Verify deterministic recovery after interruption at least at:
+
+1. Session stub created, before chat creation.
+2. Chat created, before `chat_url` persisted.
+3. `chat_url` persisted, before Voice starts.
+4. Pause Checkpoint committed, before PAUSE returns.
+5. ANALYZE committed, before UPDATE.
+6. UPDATE committed, before Review Planner.
+7. `_STAGING` written/verified, before ACTIVE promotion.
+8. ACTIVE promoted, before current Session COMPLETED.
+9. Session COMPLETED, before rename.
+
+The expected result is no duplicate logical Session, no duplicate Review Ledger transition, and no double curriculum advancement.
+
+An unbound orphan external chat is acceptable only for case 2 and must never become an active EnPal Session automatically.
+
+---
+
+## 13.2 V1 end-to-end acceptance gate
+
+V1 is complete only when the production-like environment demonstrates:
+
+1. Setup reaches READY using exact configured sources.
+2. Extension OAuth reads/writes all required Sheets.
+3. ChatGPT reads required reference files and performs required durable writes in the target Project without per-lesson manual approval.
+4. Curriculum selection is deterministic from Curriculum Sheet + completed Sessions.
+5. New START creates one Session and one authoritative bound chat.
+6. Protected Listening never flashes protected content before mask protection.
+7. PAUSE durably writes a usable semantic checkpoint.
+8. RESUME uses the exact bound chat and continues from checkpoint.
+9. Supervisor failure does not block a valid lesson.
+10. ENPAL_CONTROL messages do not contaminate Supervisor/ANALYZE evidence.
+11. ANALYZE → UPDATE → Review Planner ordering is durable and recoverable.
+12. New Session Brief is staged, verified, and atomically promoted without corrupting ACTIVE.
+13. Curriculum advances exactly once per completed Session.
+14. Restart/reload at every crash-window case recovers deterministically.
+15. Rename failure does not block READY.
+16. No production workflow depends on parsing ChatGPT assistant prose.
+
+---
+
+# 14. Pre-Implementation Contract Alignment
+
+Before implementation begins, update the separate runtime artifacts so they agree with this spec:
+
+- START: Curriculum/Brief identity, mandatory read set, preemptive mask, chat-binding rule.
+- PAUSE: ChatGPT semantic checkpoint write; Extension verify.
+- END: durable ANALYZE/UPDATE/Planner/staging/promotion order.
+- Review Planner: exactly Base Lesson + verified Review Ledger as inputs.
+- ANALYZE: ignore ENPAL_CONTROL traffic and use only lesson evidence.
+- Supervisor: ignore ENPAL_CONTROL traffic and support degraded mode.
+- Session Brief contract: canonical lesson model + stable Review Item IDs.
+- Runtime configuration: exact allowlisted IDs/URLs.
+- Legacy Drive Base Lesson JSON / Target Bank / deprecated preparation assumptions: non-authoritative.
+
+This alignment is documentation/contract work, not a new runtime subsystem.
+
+---
+
+# 15. Canonical V1 Invariants
+
+Implementation choices should preserve these invariants:
+
+1. ChatGPT = semantic teaching/reasoning.
+2. Extension = deterministic orchestration/verification.
+3. Sheets = durable runtime truth.
+4. Local storage = recovery journal.
+5. Curriculum Sheet = canonical fixed Base Lesson source.
+6. One active logical Session at a time.
+7. One Session = one authoritative bound `chat_url`.
+8. External orphan chat may exist only when chat creation crashed before durable binding.
+9. Session Brief ACTIVE contains only the current/ready lesson.
+10. `_STAGING` is temporary, not history.
+11. Session Brief identity is curriculum identity; Session ID is bound at START.
+12. Review Ledger is the only long-term review personalization state.
+13. Review Planner cannot change the core curriculum lesson.
+14. Required Listening Mask failure is fail-closed.
+15. Supervisor failure is fail-open.
+16. Rename failure is fail-open.
+17. Control messages are classified and excluded from pedagogical evidence.
+18. Runtime sources are exact allowlisted IDs/URLs.
+19. No core correctness dependency on MV3 service-worker lifetime.
+20. No assistant-output scraping.
+21. No additional backend or architectural subsystem without a demonstrated V1 need.
+
+Any future change that breaks these invariants is an architectural change and must update this spec first.
