@@ -88,3 +88,29 @@ test('initial plan failure does not invent zero progress', async () => {
   assert.deepEqual(states, []);
   assert.match(warnings.at(-1), /plan unavailable/i);
 });
+
+
+test('malformed plan refresh preserves the last good progress', async () => {
+  let malformed = false;
+  const warnings = [];
+  const controller = createDashboardController({
+    expectedTaskCount: 1,
+    client: {
+      async loadPlan() {
+        return malformed ? '# truncated plan' : '### Task 1: A\n- [x] done';
+      },
+      async loadEnglishSpec() { return '**Status:** APPROVED'; },
+      async loadVietnameseSpec() { return '**Trạng thái:** ĐÃ DUYỆT'; },
+      async loadRecentCommits() { return []; }
+    },
+    onWarning: (message) => warnings.push(message)
+  });
+
+  const first = await controller.refreshAll();
+  assert.equal(first.overallPercent, 100);
+
+  malformed = true;
+  const second = await controller.refreshDocuments();
+  assert.equal(second.overallPercent, 100);
+  assert.match(warnings.at(-1), /expected 1 task/i);
+});
