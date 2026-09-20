@@ -64,3 +64,32 @@ test('cache-busts document URLs so refresh cannot reuse stale raw/main content',
 
   assert.match(calls[0], /\?v=123456$/);
 });
+
+
+test('pins document fetches to the latest main commit after commit refresh', async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (url.includes('/commits?')) {
+      return {
+        ok: true,
+        json: async () => [{
+          sha: '1234567890abcdef',
+          html_url: '#',
+          commit: { message: 'latest', author: { date: '' } }
+        }]
+      };
+    }
+    return { ok: true, text: async () => '# pinned' };
+  };
+
+  const client = createGithubDataClient({ fetchImpl, now: () => 99 });
+  await client.loadRecentCommits();
+  await client.loadPlan();
+
+  assert.match(
+    calls.at(-1),
+    /raw\.githubusercontent\.com\/ldchung851010\/Enpal-extension\/1234567890abcdef\//
+  );
+  assert.match(calls.at(-1), /\?v=99$/);
+});

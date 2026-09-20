@@ -127,13 +127,17 @@ export function createDashboardController({
   }
 
   async function refreshAll() {
+    const commitResult = await Promise.allSettled([client.loadRecentCommits()]);
+    if (commitResult[0].status === 'fulfilled') {
+      sources.commits = commitResult[0].value;
+    }
+
     const results = await Promise.allSettled([
       client.loadPlan(),
       client.loadEnglishSpec(),
-      client.loadVietnameseSpec(),
-      client.loadRecentCommits()
+      client.loadVietnameseSpec()
     ]);
-    const keys = ['planMarkdown', 'enSpecMarkdown', 'viSpecMarkdown', 'commits'];
+    const keys = ['planMarkdown', 'enSpecMarkdown', 'viSpecMarkdown'];
     const warnings = [];
 
     applyPlanResult(results[0], warnings);
@@ -141,7 +145,7 @@ export function createDashboardController({
       const index = offset + 1;
       if (result.status === 'fulfilled') {
         sources[keys[index]] = result.value;
-      } else if (keys[index] !== 'commits') {
+      } else {
         warnings.push(errorMessage(result));
       }
     });
