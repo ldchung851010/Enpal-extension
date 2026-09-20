@@ -25,6 +25,17 @@
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "content/chatgpt-runtime.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
   "side_panel": {
     "default_path": "sidepanel/index.html"
   },

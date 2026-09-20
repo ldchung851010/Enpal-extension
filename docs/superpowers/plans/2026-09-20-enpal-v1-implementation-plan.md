@@ -864,7 +864,7 @@ git commit -m "feat: add EnPal durable data repositories"
   - `getRealtimeFeed(tabId)`
 - Content script owns only DOM/UI semantics; workflow code never receives selectors.
 
-- [ ] **Step 1: Write the failing control-envelope test**
+- [x] **Step 1: Write the failing control-envelope test**
 
 ```js
 import test from 'node:test';
@@ -885,7 +885,7 @@ test('creates a deterministic ENPAL_CONTROL envelope', () => {
 });
 ```
 
-- [ ] **Step 2: Write adapter/runtime message tests**
+- [x] **Step 2: Write adapter/runtime message tests**
 
 Test that adapter methods send named messages such as:
 
@@ -897,7 +897,7 @@ Test that adapter methods send named messages such as:
 
 Test the classic content script with `loadClassicScript()` and a fake `chrome.runtime.onMessage` listener so each action returns structured results rather than raw DOM text.
 
-- [ ] **Step 3: Run tests and confirm failure**
+- [x] **Step 3: Run tests and confirm failure**
 
 ```bash
 node --test tests/unit/control-envelope.test.js tests/unit/chatgpt-adapter.test.js tests/unit/chatgpt-runtime.test.js
@@ -905,7 +905,7 @@ node --test tests/unit/control-envelope.test.js tests/unit/chatgpt-adapter.test.
 
 Expected: FAIL.
 
-- [ ] **Step 4: Implement the boundary**
+- [x] **Step 4: Implement the boundary**
 
 `core/control-envelope.js`:
 
@@ -937,7 +937,7 @@ Add `content/chatgpt-runtime.js` as a manifest content script for `https://chatg
 
 Never return assistant message text for workflow parsing.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```bash
 node --test tests/unit/control-envelope.test.js tests/unit/chatgpt-adapter.test.js tests/unit/chatgpt-runtime.test.js
