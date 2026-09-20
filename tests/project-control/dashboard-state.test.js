@@ -64,3 +64,24 @@ test('controller preserves the last good source when one refresh fails', async (
   assert.equal(states.length, 2);
   assert.match(warnings.at(-1), /plan unavailable/i);
 });
+
+
+test('initial plan failure does not invent zero progress', async () => {
+  const states = [];
+  const warnings = [];
+  const controller = createDashboardController({
+    client: {
+      async loadPlan() { throw new Error('plan unavailable'); },
+      async loadEnglishSpec() { return '**Status:** APPROVED'; },
+      async loadVietnameseSpec() { return '**Trạng thái:** ĐÃ DUYỆT'; },
+      async loadRecentCommits() { return []; }
+    },
+    onState: (state) => states.push(state),
+    onWarning: (message) => warnings.push(message)
+  });
+
+  const result = await controller.refreshAll();
+  assert.equal(result, null);
+  assert.deepEqual(states, []);
+  assert.match(warnings.at(-1), /plan unavailable/i);
+});
