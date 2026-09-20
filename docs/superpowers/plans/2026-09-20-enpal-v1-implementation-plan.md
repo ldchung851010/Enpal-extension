@@ -35,18 +35,31 @@
 
 ## Pre-Execution Gates
 
-Do not begin Task 1 until these approved-spec gates are re-run in the target production-like account and recorded:
+These are **phase gates**, not a single all-or-nothing blocker before Task 1. This resolves the earlier circular dependency where Extension OAuth was required before the task that implements OAuth.
 
-- [ ] Target ChatGPT Project reads Teacher Role, both Teaching Methods, Session Brief, and EnPal Database from the configured sources.
-- [ ] Target Project can perform the required Google Sheet writes without per-lesson manual approval.
-- [ ] Extension Google OAuth can read/write the required Sheets.
-- [ ] Voice START/STOP still works with the trusted semantic mechanism.
-- [ ] Listening Mask still prevents protected text exposure.
-- [ ] The runtime contract artifacts START, PAUSE, END, ANALYZE, UPDATE, Review Planner, Supervisor, Teacher Role, Speaking Method, and Listening Method are aligned with the approved spec.
-- [ ] The production Google OAuth client ID for this Chrome Extension is available to the executor before Task 3.
-- [ ] The Supervisor live decision transport, if available for V1, is documented behind the `decisionProvider` interface before Task 7; if no verified transport exists, V1 runs the approved fail-open DEGRADED path rather than inventing a second LLM/backend.
+Current gate record:
 
-If any correctness-critical gate fails, stop and update the spec instead of adding a DOM-scraping fallback. Supervisor transport alone is non-blocking because the approved policy is fail-open.
+- [ ] Target ChatGPT Project reads the exact canonical Teacher Role, Teaching Method, Session Brief, Curriculum, Review Ledger, and EnPal Database sources. — **OPEN: live Project reconfirmation required**
+- [ ] Target ChatGPT Project can perform the required runtime Google Sheet writes without a manual approval dialog on every lesson transaction. — **OPEN: prior spike was conditional; exact target flow still requires live proof**
+- [ ] Extension Google OAuth can read/write the configured runtime Sheets. — **DEFERRED TO TASK 3; blocks Google repository integration after Task 3, not Task 1–2**
+- [x] Voice START/STOP works with the trusted semantic mechanism. — **PASS from verified spike; reconfirm during live adapter/E2E acceptance**
+- [x] Listening Mask prevents protected text exposure. — **PASS from verified spike; reconfirm during protected Listening E2E**
+- [x] Runtime contracts START, PAUSE, END, ANALYZE, UPDATE, Review Planner, Supervisor, Teacher Role, Speaking Method, Listening Method, Session Brief, and exact-source registry are aligned with the approved spec. — **PASS 2026-09-20**
+- [ ] Production Google OAuth client ID for this Chrome Extension is available before Task 3 manifest configuration. — **OPEN**
+- [x] Supervisor runtime contract supports fail-open DEGRADED mode when no verified live decision transport exists; a separate Observer/backend is not introduced. — **PASS**
+
+Canonical source registry:
+- Google Doc: `EnPal_Runtime_Source_Registry_V1`
+- ID: `1Pov9MX_39iACYdt1ccEsOE9NJucJSlxoKuT_87vb44w`
+
+Gate timing:
+- **Task 1–2:** may proceed with contract alignment complete.
+- **Task 3:** requires the production OAuth client ID before manifest configuration is finalized.
+- **Task 4 and later Google integration:** requires Extension OAuth read/write verification.
+- **Live ChatGPT Adapter / START / END acceptance:** requires the two target-Project read/write gates above.
+- **Final release:** requires all gates plus the full live E2E acceptance checklist.
+
+If any correctness-critical live gate fails, stop the affected integration phase and revisit the architecture. Never add assistant-output scraping as a fallback.
 
 ## File Structure to Build
 
