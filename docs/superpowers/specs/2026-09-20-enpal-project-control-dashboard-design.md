@@ -1,6 +1,6 @@
 # EnPal Project Control Dashboard V1 — Design Spec
 
-**Status:** DRAFT FOR REVIEW  
+**Status:** APPROVED  
 **Date:** 2026-09-20  
 **Scope:** Project-management dashboard only. This is outside EnPal learner runtime.
 
