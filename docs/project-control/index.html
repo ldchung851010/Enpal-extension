@@ -5,7 +5,410 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>EnPal Project Control</title>
-  <link rel="stylesheet" href="./dashboard.css">
+  <style>
+:root {
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-soft: #f9fbff;
+  --ink: #162033;
+  --muted: #667085;
+  --line: #e5e9f2;
+  --brand: #4f46e5;
+  --brand-2: #7c3aed;
+  --green: #0f9f6e;
+  --green-soft: #eaf8f2;
+  --amber-soft: #fff8e8;
+  --red: #c24141;
+  --red-soft: #fff0f0;
+  --slate-soft: #eef2f7;
+  --shadow: 0 16px 40px rgba(26, 36, 64, 0.08);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 8% -10%, rgba(79, 70, 229, 0.09), transparent 28rem),
+    radial-gradient(circle at 96% 8%, rgba(124, 58, 237, 0.08), transparent 24rem),
+    var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+button, a { font: inherit; }
+a { color: inherit; }
+
+.page-shell {
+  width: min(1480px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 34px 0 28px;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.eyebrow, .section-kicker {
+  margin: 0 0 8px;
+  color: var(--brand);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+h1, h2, h3, p { margin-top: 0; }
+
+h1 {
+  margin-bottom: 8px;
+  font-size: clamp(1.8rem, 3vw, 2.7rem);
+  letter-spacing: -0.04em;
+}
+
+.subtitle {
+  max-width: 760px;
+  color: var(--muted);
+  margin-bottom: 0;
+  line-height: 1.6;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-top: 10px;
+}
+
+.primary-button {
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  color: #fff;
+  padding: 11px 16px;
+  cursor: pointer;
+  font-weight: 750;
+  box-shadow: 0 10px 24px rgba(79, 70, 229, 0.2);
+}
+
+.primary-button:disabled { opacity: 0.55; cursor: wait; }
+
+.text-link {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.text-link:hover { text-decoration: underline; }
+
+.warning-banner {
+  margin-bottom: 18px;
+  padding: 12px 15px;
+  border: 1px solid #f2c96d;
+  border-radius: 12px;
+  background: var(--amber-soft);
+  color: #79510d;
+  font-size: 0.9rem;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.hero-card, .section-card, .section-block {
+  background: var(--surface);
+  border: 1px solid rgba(213, 220, 233, 0.9);
+  box-shadow: var(--shadow);
+}
+
+.hero-card {
+  min-height: 170px;
+  border-radius: 18px;
+  padding: 22px;
+}
+
+.hero-card--progress {
+  color: #fff;
+  background: linear-gradient(135deg, #25356f 0%, #4f46e5 56%, #7c3aed 100%);
+  border: 0;
+}
+
+.hero-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.hero-card__header span { font-weight: 650; opacity: 0.82; }
+.hero-card__header strong { font-size: 2.35rem; letter-spacing: -0.05em; }
+
+.progress-track, .mini-progress {
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.progress-track {
+  height: 10px;
+  margin: 24px 0 20px;
+  background: rgba(255,255,255,0.18);
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+  transition: width 280ms ease;
+}
+
+.hero-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.hero-meta div { display: flex; flex-direction: column; gap: 4px; }
+.hero-meta span { font-size: 0.78rem; opacity: 0.7; }
+.hero-meta strong { font-size: 1.05rem; }
+
+.metric-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 15px;
+}
+
+.metric-value {
+  display: block;
+  font-size: 1.12rem;
+  line-height: 1.4;
+}
+
+.metric-value--task { font-size: 1.22rem; }
+.metric-note { color: var(--muted); font-size: 0.82rem; line-height: 1.5; margin: 14px 0 0; }
+
+.section-block, .section-card {
+  border-radius: 18px;
+  padding: 22px;
+}
+
+.section-block { margin-bottom: 24px; }
+.section-block--last { margin-bottom: 18px; }
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.section-heading--compact { align-items: center; }
+.section-heading h2 { margin: 0; font-size: 1.15rem; letter-spacing: -0.02em; }
+.section-heading .section-kicker { margin-bottom: 5px; }
+
+.quiet-badge {
+  border-radius: 999px;
+  background: var(--slate-soft);
+  color: #526078;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.task-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+  padding: 15px;
+}
+
+.task-card.blocked { border-color: #efb0b0; background: #fffafa; }
+.task-card.done { border-color: #b9e6d3; background: #fbfffd; }
+.task-card.in-progress { border-color: #c9c5fb; background: #fbfaff; }
+
+.task-card__top, .task-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-number {
+  color: #98a2b3;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.task-card h3 {
+  min-height: 42px;
+  margin: 12px 0 15px;
+  font-size: 0.94rem;
+  line-height: 1.4;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 0.64rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: var(--slate-soft);
+  color: #5d687b;
+}
+
+.status-pill.done { background: var(--green-soft); color: var(--green); }
+.status-pill.in-progress { background: #eeecff; color: #5448d7; }
+.status-pill.blocked { background: var(--red-soft); color: var(--red); }
+
+.mini-progress {
+  height: 6px;
+  background: #e9edf5;
+}
+
+.mini-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2));
+}
+
+.task-meta { margin-top: 8px; color: var(--muted); font-size: 0.74rem; }
+.task-meta strong { color: var(--ink); }
+.blocker-copy { margin: 10px 0 0; color: var(--red); font-size: 0.76rem; line-height: 1.45; }
+
+.two-column-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.gate-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.gate-item {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px;
+  align-items: start;
+  color: #475467;
+  line-height: 1.45;
+  font-size: 0.88rem;
+}
+
+.gate-item.done { color: var(--green); }
+.gate-check { font-weight: 900; }
+
+.governance-list, .acceptance-list, .blockers-list, .commit-list { display: grid; gap: 9px; }
+
+.governance-row, .acceptance-row, .blocker-row, .commit-row {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 11px 12px;
+}
+
+.governance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  text-decoration: none;
+}
+
+.governance-row:hover { border-color: #c7c3fb; }
+.governance-row span { color: var(--muted); font-size: 0.86rem; }
+.governance-row strong { font-size: 0.78rem; color: var(--brand); }
+
+.acceptance-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.acceptance-row div { display: flex; flex-direction: column; gap: 3px; }
+.acceptance-row strong { font-size: 0.76rem; color: var(--muted); }
+.acceptance-row div span { font-size: 0.84rem; }
+
+.blocker-row { background: var(--red-soft); border-color: #f5caca; }
+.blocker-row strong { display: block; color: var(--red); margin-bottom: 4px; font-size: 0.8rem; }
+.blocker-row span { color: #7b3333; font-size: 0.84rem; }
+
+.commit-row {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  text-decoration: none;
+}
+
+.commit-row:hover { border-color: #c7c3fb; background: #fbfaff; }
+.commit-row code { color: var(--brand); font-weight: 750; }
+.commit-message { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.88rem; }
+.commit-row time { color: var(--muted); font-size: 0.76rem; }
+
+.empty { color: var(--muted); font-size: 0.86rem; margin: 0; line-height: 1.5; }
+.success-copy { color: var(--green); }
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: #8993a5;
+  font-size: 0.76rem;
+  padding: 4px 2px 0;
+}
+
+@media (max-width: 1100px) {
+  .hero-grid { grid-template-columns: 1fr 1fr; }
+  .hero-card--progress { grid-column: 1 / -1; }
+  .task-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .page-shell { width: min(100% - 24px, 1480px); padding-top: 22px; }
+  .topbar { flex-direction: column; }
+  .topbar-actions { width: 100%; justify-content: space-between; padding-top: 0; }
+  .hero-grid, .two-column-grid { grid-template-columns: 1fr; }
+  .hero-card--progress { grid-column: auto; }
+  .task-grid { grid-template-columns: 1fr; }
+  .section-heading { align-items: flex-start; }
+  .commit-row { grid-template-columns: 66px 1fr; }
+  .commit-row time { grid-column: 2; }
+  footer { flex-direction: column; }
+}
+
+</style>
 </head>
 <body>
   <div class="page-shell">
@@ -16,7 +419,7 @@
         <p class="subtitle">Dashboard chỉ đọc, cập nhật trực tiếp từ GitHub. Không có trạng thái dự án riêng.</p>
       </div>
       <div class="topbar-actions">
-        <a id="repo-link" class="text-link" href="#" target="_blank" rel="noreferrer">Mở GitHub</a>
+        <a id="repo-link" class="text-link" href="https://github.com/ldchung851010/Enpal-extension" target="_blank" rel="noreferrer">Mở GitHub</a>
         <button id="refresh-now" class="primary-button" type="button">Cập nhật ngay</button>
       </div>
     </header>
@@ -64,7 +467,7 @@
             <p class="section-kicker">IMPLEMENTATION</p>
             <h2>16 task triển khai</h2>
           </div>
-          <a id="plan-link" class="text-link" href="#" target="_blank" rel="noreferrer">Xem Implementation Plan</a>
+          <a id="plan-link" class="text-link" href="https://github.com/ldchung851010/Enpal-extension/blob/main/docs/superpowers/plans/2026-09-20-enpal-v1-implementation-plan.md" target="_blank" rel="noreferrer">Xem Implementation Plan</a>
         </div>
         <div id="tasks-grid" class="task-grid" aria-live="polite"></div>
       </section>
@@ -89,23 +492,23 @@
             </div>
           </div>
           <div class="governance-list">
-            <a id="plan-status-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+            <a id="plan-status-link" class="governance-row" href="https://github.com/ldchung851010/Enpal-extension/blob/main/docs/superpowers/plans/2026-09-20-enpal-v1-implementation-plan.md" target="_blank" rel="noreferrer">
               <span>Implementation Plan V1</span>
               <strong id="plan-status">—</strong>
             </a>
-            <a id="spec-en-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+            <a id="spec-en-link" class="governance-row" href="https://github.com/ldchung851010/Enpal-extension/blob/main/docs/superpowers/specs/2026-09-20-enpal-v1-technical-spec.md" target="_blank" rel="noreferrer">
               <span>Technical Spec</span>
               <strong id="spec-en-status">—</strong>
             </a>
-            <a id="spec-vi-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+            <a id="spec-vi-link" class="governance-row" href="https://github.com/ldchung851010/Enpal-extension/blob/main/docs/superpowers/specs/2026-09-20-enpal-v1-technical-spec-vi.md" target="_blank" rel="noreferrer">
               <span>Technical Spec tiếng Việt</span>
               <strong id="spec-vi-status">—</strong>
             </a>
-            <a id="audit-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+            <a id="audit-link" class="governance-row" href="https://github.com/ldchung851010/Enpal-extension/blob/main/docs/superpowers/specs/2026-09-20-enpal-v1-multirole-audit.md" target="_blank" rel="noreferrer">
               <span>Multi-role Audit</span>
               <strong>Xem</strong>
             </a>
-            <a id="audit-closure-link" class="governance-row" href="#" target="_blank" rel="noreferrer">
+            <a id="audit-closure-link" class="governance-row" href="https://github.com/ldchung851010/Enpal-extension/blob/main/docs/superpowers/specs/2026-09-20-enpal-v1-audit-closure.md" target="_blank" rel="noreferrer">
               <span>Audit Closure</span>
               <strong>Xem</strong>
             </a>
@@ -153,6 +556,498 @@
     </footer>
   </div>
 
-  <script type="module" src="./dashboard.js"></script>
+  <script>
+function countCheckboxes(text) {
+  const matches = [...text.matchAll(/^\s*-\s*\[([ xX])\]\s+.+$/gm)];
+  const completed = matches.filter((match) => match[1].toLowerCase() === 'x').length;
+  return { completed, total: matches.length };
+}
+
+function percent(completed, total) {
+  return total === 0 ? 0 : Math.round((completed / total) * 100);
+}
+
+function deriveTaskStatus(completed, total, blocker) {
+  if (blocker) return 'BLOCKED';
+  if (total > 0 && completed === total) return 'DONE';
+  if (completed > 0) return 'IN PROGRESS';
+  return 'NOT STARTED';
+}
+
+function extractSection(markdown, headingPattern) {
+  const lines = markdown.split(/\r?\n/);
+  const start = lines.findIndex((line) => headingPattern.test(line.trim()));
+  if (start === -1) return '';
+
+  const collected = [];
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^#+\s+/.test(lines[index])) break;
+    collected.push(lines[index]);
+  }
+  return collected.join('\n');
+}
+
+function parseImplementationPlan(markdown) {
+  const gateText = extractSection(markdown, /^##\s+Pre-Execution Gates\b/i);
+  const gateMatches = [...gateText.matchAll(/^\s*-\s*\[([ xX])\]\s+(.+)$/gm)];
+  const gateItems = gateMatches.map((match) => ({
+    label: match[2].trim(),
+    completed: match[1].toLowerCase() === 'x'
+  }));
+  const gateCounts = {
+    completed: gateItems.filter((item) => item.completed).length,
+    total: gateItems.length
+  };
+  const gates = {
+    ...gateCounts,
+    percent: percent(gateCounts.completed, gateCounts.total),
+    items: gateItems
+  };
+
+  const taskHeading = /^###\s+Task\s+(\d+):\s*(.+?)\s*$/gm;
+  const headings = [...markdown.matchAll(taskHeading)];
+  const tasks = headings.map((heading) => {
+    const sectionStart = heading.index + heading[0].length;
+    const remainder = markdown.slice(sectionStart);
+    const nextHeading = remainder.match(/^#{1,3}\s+/m);
+    const sectionEnd = nextHeading ? sectionStart + nextHeading.index : markdown.length;
+    const section = markdown.slice(sectionStart, sectionEnd);
+    const counts = countCheckboxes(section);
+    const blockerMatch = section.match(/<!--\s*ENPAL_BLOCKED:\s*([^>]+?)\s*-->/i);
+    const blocker = blockerMatch ? blockerMatch[1].trim() : null;
+
+    return {
+      number: Number(heading[1]),
+      title: heading[2].trim(),
+      completed: counts.completed,
+      total: counts.total,
+      percent: percent(counts.completed, counts.total),
+      status: deriveTaskStatus(counts.completed, counts.total, blocker),
+      blocker
+    };
+  });
+
+  const completed = tasks.reduce((sum, task) => sum + task.completed, 0);
+  const total = tasks.reduce((sum, task) => sum + task.total, 0);
+
+  return {
+    gates,
+    tasks,
+    implementation: {
+      completed,
+      total,
+      percent: percent(completed, total)
+    }
+  };
+}
+
+function parseDocumentStatus(markdown, language = 'en') {
+  const pattern = language === 'vi'
+    ? /^\*\*Trạng thái:\*\*\s*(.+?)\s*$/mi
+    : /^\*\*Status:\*\*\s*(.+?)\s*$/mi;
+  const match = markdown.match(pattern);
+  return match ? match[1].trim() : 'UNKNOWN';
+}
+
+
+const OWNER = 'ldchung851010';
+const REPO = 'Enpal-extension';
+const BRANCH = 'main';
+
+const RAW_BASE = `https://raw.githubusercontent.com/${OWNER}/${REPO}/${BRANCH}`;
+const API_BASE = `https://api.github.com/repos/${OWNER}/${REPO}`;
+
+const SOURCES = Object.freeze({
+  plan: {
+    label: 'implementation plan',
+    url: `${RAW_BASE}/docs/superpowers/plans/2026-09-20-enpal-v1-implementation-plan.md`
+  },
+  englishSpec: {
+    label: 'English technical spec',
+    url: `${RAW_BASE}/docs/superpowers/specs/2026-09-20-enpal-v1-technical-spec.md`
+  },
+  vietnameseSpec: {
+    label: 'Vietnamese technical spec',
+    url: `${RAW_BASE}/docs/superpowers/specs/2026-09-20-enpal-v1-technical-spec-vi.md`
+  }
+});
+
+async function fetchText(fetchImpl, source) {
+  const response = await fetchImpl(source.url, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`Failed to load ${source.label}: HTTP ${response.status ?? 'unknown'}`);
+  }
+  return response.text();
+}
+
+function createGithubDataClient({ fetchImpl = fetch } = {}) {
+  return {
+    loadPlan() {
+      return fetchText(fetchImpl, SOURCES.plan);
+    },
+
+    loadEnglishSpec() {
+      return fetchText(fetchImpl, SOURCES.englishSpec);
+    },
+
+    loadVietnameseSpec() {
+      return fetchText(fetchImpl, SOURCES.vietnameseSpec);
+    },
+
+    async loadRecentCommits() {
+      const response = await fetchImpl(`${API_BASE}/commits?per_page=8`, {
+        cache: 'no-store',
+        headers: { Accept: 'application/vnd.github+json' }
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load recent commits: HTTP ${response.status ?? 'unknown'}`);
+      }
+
+      const items = await response.json();
+      return items.map((item) => ({
+        sha: item.sha.slice(0, 7),
+        message: String(item.commit?.message ?? '').split('\n')[0],
+        date: item.commit?.author?.date ?? '',
+        url: item.html_url
+      }));
+    }
+  };
+}
+
+const PROJECT_LINKS = Object.freeze({
+  repository: `https://github.com/${OWNER}/${REPO}`,
+  implementationPlan: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/docs/superpowers/plans/2026-09-20-enpal-v1-implementation-plan.md`,
+  englishSpec: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/docs/superpowers/specs/2026-09-20-enpal-v1-technical-spec.md`,
+  vietnameseSpec: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/docs/superpowers/specs/2026-09-20-enpal-v1-technical-spec-vi.md`,
+  audit: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/docs/superpowers/specs/2026-09-20-enpal-v1-multirole-audit.md`,
+  auditClosure: `https://github.com/${OWNER}/${REPO}/blob/${BRANCH}/docs/superpowers/specs/2026-09-20-enpal-v1-audit-closure.md`
+});
+
+
+
+
+
+function chooseCurrentTask(tasks) {
+  return tasks.find((task) => task.status === 'IN PROGRESS')
+    ?? tasks.find((task) => task.status === 'BLOCKED')
+    ?? tasks.find((task) => task.status === 'NOT STARTED')
+    ?? null;
+}
+
+function deriveDashboardState({
+  planMarkdown = '',
+  enSpecMarkdown = '',
+  viSpecMarkdown = '',
+  commits = [],
+  lastUpdated = null
+}) {
+  const parsed = parseImplementationPlan(planMarkdown);
+  const completedTasks = parsed.tasks.filter((task) => task.status === 'DONE').length;
+  const blockers = parsed.tasks.filter((task) => task.status === 'BLOCKED');
+  const acceptanceTasks = parsed.tasks.filter((task) => task.number >= 14 && task.number <= 16);
+
+  return {
+    overallPercent: parsed.implementation.percent,
+    completedSteps: parsed.implementation.completed,
+    totalSteps: parsed.implementation.total,
+    completedTasks,
+    totalTasks: parsed.tasks.length,
+    currentTask: chooseCurrentTask(parsed.tasks),
+    tasks: parsed.tasks,
+    gates: parsed.gates,
+    blockers,
+    acceptanceTasks,
+    implementationPlanStatus: parseDocumentStatus(planMarkdown, 'en'),
+    englishSpecStatus: parseDocumentStatus(enSpecMarkdown, 'en'),
+    vietnameseSpecStatus: parseDocumentStatus(viSpecMarkdown, 'vi'),
+    commits,
+    lastUpdated
+  };
+}
+
+function errorMessage(result) {
+  return result.status === 'rejected'
+    ? (result.reason?.message ?? String(result.reason))
+    : null;
+}
+
+function createDashboardController({
+  client,
+  onState = () => {},
+  onWarning = () => {},
+  now = () => new Date(),
+  expectedTaskCount = null
+}) {
+  const sources = {
+    planMarkdown: '',
+    enSpecMarkdown: '',
+    viSpecMarkdown: '',
+    commits: []
+  };
+
+  let lastState = null;
+
+  function applyPlanResult(result, warnings) {
+    if (result.status === 'rejected') {
+      warnings.push(errorMessage(result));
+      return;
+    }
+
+    if (expectedTaskCount !== null) {
+      const parsed = parseImplementationPlan(result.value);
+      if (parsed.tasks.length !== expectedTaskCount) {
+        warnings.push(
+          `Implementation plan parse failed: expected ${expectedTaskCount} task(s), found ${parsed.tasks.length}`
+        );
+        return;
+      }
+    }
+
+    sources.planMarkdown = result.value;
+  }
+
+  function emit(warnings = []) {
+    const warningText = warnings.filter(Boolean).join(' · ');
+    if (!sources.planMarkdown && !lastState) {
+      onWarning(warningText || 'Implementation plan unavailable');
+      return null;
+    }
+
+    lastState = deriveDashboardState({
+      ...sources,
+      lastUpdated: now().toISOString()
+    });
+    onState(lastState);
+    onWarning(warningText);
+    return lastState;
+  }
+
+  async function refreshDocuments() {
+    const results = await Promise.allSettled([
+      client.loadPlan(),
+      client.loadEnglishSpec(),
+      client.loadVietnameseSpec()
+    ]);
+    const keys = ['planMarkdown', 'enSpecMarkdown', 'viSpecMarkdown'];
+    const warnings = [];
+
+    applyPlanResult(results[0], warnings);
+    results.slice(1).forEach((result, offset) => {
+      const index = offset + 1;
+      if (result.status === 'fulfilled') {
+        sources[keys[index]] = result.value;
+      } else {
+        warnings.push(errorMessage(result));
+      }
+    });
+
+    return emit(warnings);
+  }
+
+  async function refreshCommits() {
+    const result = await Promise.allSettled([client.loadRecentCommits()]);
+    const warnings = [];
+    if (result[0].status === 'fulfilled') {
+      sources.commits = result[0].value;
+    } else {
+      warnings.push(errorMessage(result[0]));
+    }
+    return emit(warnings);
+  }
+
+  async function refreshAll() {
+    const results = await Promise.allSettled([
+      client.loadPlan(),
+      client.loadEnglishSpec(),
+      client.loadVietnameseSpec(),
+      client.loadRecentCommits()
+    ]);
+    const keys = ['planMarkdown', 'enSpecMarkdown', 'viSpecMarkdown', 'commits'];
+    const warnings = [];
+
+    applyPlanResult(results[0], warnings);
+    results.slice(1).forEach((result, offset) => {
+      const index = offset + 1;
+      if (result.status === 'fulfilled') {
+        sources[keys[index]] = result.value;
+      } else {
+        warnings.push(errorMessage(result));
+      }
+    });
+
+    return emit(warnings);
+  }
+
+  return {
+    refreshAll,
+    refreshDocuments,
+    refreshCommits,
+    getState: () => lastState
+  };
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function statusClass(status) {
+  return String(status).toLowerCase().replaceAll(' ', '-');
+}
+
+function formatDate(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return escapeHtml(value);
+  return new Intl.DateTimeFormat('vi-VN', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(date);
+}
+
+function renderTasks(tasks) {
+  return tasks.map((task) => `
+    <article class="task-card ${statusClass(task.status)}">
+      <div class="task-card__top">
+        <span class="task-number">${String(task.number).padStart(2, '0')}</span>
+        <span class="status-pill ${statusClass(task.status)}">${escapeHtml(task.status)}</span>
+      </div>
+      <h3>${escapeHtml(task.title)}</h3>
+      <div class="mini-progress" aria-label="${task.percent}%">
+        <span style="width:${task.percent}%"></span>
+      </div>
+      <div class="task-meta">
+        <span>${task.completed}/${task.total} bước</span>
+        <strong>${task.percent}%</strong>
+      </div>
+      ${task.blocker ? `<p class="blocker-copy">${escapeHtml(task.blocker)}</p>` : ''}
+    </article>
+  `).join('');
+}
+
+function renderGates(gates) {
+  if (!gates.items.length) return '<p class="empty">Chưa có gate dạng checklist.</p>';
+  return gates.items.map((gate) => `
+    <li class="gate-item ${gate.completed ? 'done' : ''}">
+      <span class="gate-check">${gate.completed ? '✓' : '○'}</span>
+      <span>${escapeHtml(gate.label)}</span>
+    </li>
+  `).join('');
+}
+
+function renderCommits(commits) {
+  if (!commits.length) return '<p class="empty">Chưa tải được hoạt động gần đây.</p>';
+  return commits.map((commit) => `
+    <a class="commit-row" href="${escapeHtml(commit.url)}" target="_blank" rel="noreferrer">
+      <code>${escapeHtml(commit.sha)}</code>
+      <span class="commit-message">${escapeHtml(commit.message)}</span>
+      <time>${formatDate(commit.date)}</time>
+    </a>
+  `).join('');
+}
+
+function renderBlockers(blockers) {
+  if (!blockers.length) return '<p class="empty success-copy">Không có blocker đang được ghi nhận.</p>';
+  return blockers.map((task) => `
+    <div class="blocker-row">
+      <strong>Task ${task.number}</strong>
+      <span>${escapeHtml(task.blocker)}</span>
+    </div>
+  `).join('');
+}
+
+function renderAcceptance(tasks) {
+  if (!tasks.length) return '<p class="empty">Chưa có dữ liệu acceptance.</p>';
+  return tasks.map((task) => `
+    <div class="acceptance-row">
+      <div>
+        <strong>Task ${task.number}</strong>
+        <span>${escapeHtml(task.title)}</span>
+      </div>
+      <span class="status-pill ${statusClass(task.status)}">${escapeHtml(task.status)}</span>
+    </div>
+  `).join('');
+}
+
+function renderDashboard(state, root = document) {
+  root.querySelector('#overall-percent').textContent = `${state.overallPercent}%`;
+  root.querySelector('#overall-progress').style.width = `${state.overallPercent}%`;
+  root.querySelector('#step-count').textContent = `${state.completedSteps} / ${state.totalSteps}`;
+  root.querySelector('#task-count').textContent = `${state.completedTasks} / ${state.totalTasks}`;
+  root.querySelector('#current-task').textContent = state.currentTask
+    ? `Task ${state.currentTask.number}: ${state.currentTask.title}`
+    : 'Không còn task đang chờ';
+  root.querySelector('#last-refresh').textContent = formatDate(state.lastUpdated);
+  root.querySelector('#tasks-grid').innerHTML = renderTasks(state.tasks);
+  root.querySelector('#gates-list').innerHTML = renderGates(state.gates);
+  root.querySelector('#gate-summary').textContent = `${state.gates.completed}/${state.gates.total} hoàn tất`;
+  root.querySelector('#plan-status').textContent = state.implementationPlanStatus;
+  root.querySelector('#spec-en-status').textContent = state.englishSpecStatus;
+  root.querySelector('#spec-vi-status').textContent = state.vietnameseSpecStatus;
+  root.querySelector('#blockers-list').innerHTML = renderBlockers(state.blockers);
+  root.querySelector('#acceptance-list').innerHTML = renderAcceptance(state.acceptanceTasks);
+  root.querySelector('#commits-list').innerHTML = renderCommits(state.commits);
+}
+
+function setWarning(message, root = document) {
+  const element = root.querySelector('#refresh-warning');
+  element.hidden = !message;
+  element.textContent = message ? `Không thể cập nhật một phần dữ liệu mới: ${message}` : '';
+}
+
+function bindLinks(root = document) {
+  const links = {
+    'repo-link': PROJECT_LINKS.repository,
+    'plan-link': PROJECT_LINKS.implementationPlan,
+    'plan-status-link': PROJECT_LINKS.implementationPlan,
+    'spec-en-link': PROJECT_LINKS.englishSpec,
+    'spec-vi-link': PROJECT_LINKS.vietnameseSpec,
+    'audit-link': PROJECT_LINKS.audit,
+    'audit-closure-link': PROJECT_LINKS.auditClosure
+  };
+  Object.entries(links).forEach(([id, href]) => {
+    const element = root.querySelector(`#${id}`);
+    if (element) element.href = href;
+  });
+}
+
+if (typeof document !== 'undefined') {
+  const client = createGithubDataClient();
+  const controller = createDashboardController({
+    client,
+    onState: (state) => renderDashboard(state),
+    onWarning: (message) => setWarning(message),
+    expectedTaskCount: 16
+  });
+
+  const start = async () => {
+    bindLinks();
+    const refreshButton = document.querySelector('#refresh-now');
+    refreshButton.addEventListener('click', async () => {
+      refreshButton.disabled = true;
+      try {
+        await controller.refreshAll();
+      } finally {
+        refreshButton.disabled = false;
+      }
+    });
+
+    await controller.refreshAll();
+    setInterval(() => controller.refreshDocuments(), 60_000);
+    setInterval(() => controller.refreshCommits(), 300_000);
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
+}
+
+</script>
 </body>
 </html>
