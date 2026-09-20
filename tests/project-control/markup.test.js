@@ -18,6 +18,7 @@ test('dashboard markup exposes all required read-only sections and controls', ()
     'tasks-grid',
     'gates-list',
     'gate-summary',
+    'plan-status',
     'spec-en-status',
     'spec-vi-status',
     'blockers-list',
