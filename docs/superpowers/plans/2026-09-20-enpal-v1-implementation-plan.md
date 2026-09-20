@@ -638,13 +638,13 @@ git commit -m "feat: add Google OAuth and Sheets client"
 - Create: `tests/unit/session-brief-repository.test.js`
 - Create: `tests/unit/review-ledger-repository.test.js`
 
-**Interfaces:**
+**Execution note (2026-09-20):** canonical workbook schema was read back before commit. The real `Sessions` tab uses `lifecycle_status` and `pipeline_phase`; the repository normalizes these to `status`/`phase` for workflow code while writing the canonical columns. `ACTIVE`/`_STAGING` sheet IDs are supplied explicitly from workbook metadata; no title discovery is used.\n\n**Interfaces:**
 - `createCurriculumRepository({ sheets, spreadsheetId })`: `getLesson(sequence)`, `getNextLesson(completedSequences)`.
 - `createSessionRepository({ sheets, spreadsheetId })`: `listActive()`, `createStartingSession()`, `bindChat()`, `markState()`, `getById()`.
 - `createSessionBriefRepository({ sheets, spreadsheetId })`: `readActive()`, `readStaging()`, `verifyStaging()`, `promoteStaging()`.
 - `createReviewLedgerRepository({ sheets, spreadsheetId })`: `readAll()` only; durable UPDATE completion is verified on the active Session phase marker after ChatGPT has verified its Review Ledger write.
 
-- [ ] **Step 1: Write the failing repository tests**
+- [x] **Step 1: Write the failing repository tests**
 
 Create concrete repository tests using in-memory fake Sheets clients.
 
@@ -788,7 +788,7 @@ test('promotion is one atomic batchUpdate call', async () => {
 
 Use an inline fake `sheets` object in each test; do not hit Google.
 
-- [ ] **Step 2: Run repository tests and confirm failure**
+- [x] **Step 2: Run repository tests and confirm failure**
 
 ```bash
 node --test tests/unit/*repository.test.js
@@ -796,7 +796,7 @@ node --test tests/unit/*repository.test.js
 
 Expected: FAIL because repository modules do not exist.
 
-- [ ] **Step 3: Implement repositories with explicit row mapping**
+- [x] **Step 3: Implement repositories with explicit row mapping**
 
 Use one header-row mapper per repository:
 
@@ -817,7 +817,7 @@ For Session Brief promotion, implement `promoteStaging()` as exactly one `sheets
 
 The exact sheet IDs/ranges are read from the workbook metadata/config produced during setup; never search by file title.
 
-- [ ] **Step 4: Run repository tests**
+- [x] **Step 4: Run repository tests**
 
 ```bash
 node --test tests/unit/*repository.test.js
@@ -826,7 +826,7 @@ npm run test:unit
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add storage tests/unit
