@@ -502,6 +502,8 @@ The core curriculum is prebuilt and stable.
 
 V1 separates **curriculum progression** from **personalization**.
 
+Base Lesson and Review Planner must use one canonical logical lesson model. Their storage representation may differ, but field meaning and lesson semantics must not drift between the fixed curriculum source, Planner input/output, and Session Brief.
+
 ## 7.1 Core progression
 
 The Extension determines the next base lesson from:
@@ -639,7 +641,9 @@ RESUME       UPDATE
               ↓
         REVIEW PLANNER
               ↓
-      NEXT SESSION BRIEF
+   PREPARE SESSION BRIEF
+              ↓
+      SESSION BRIEF READY
               ↓
           COMPLETE
               ↓
@@ -667,16 +671,17 @@ V1 is not considered complete merely because individual components work.
 
 The minimum end-to-end proof must demonstrate:
 
-1. A new START creates one correct Project conversation and starts learning only after ChatGPT has read the required material.
-2. PAUSE persists a usable checkpoint and later START resumes the same conversation at the correct learning point.
-3. END runs the closed loop through ANALYZE, UPDATE, Review Planner and next Session Brief preparation.
-4. The next Session Brief replaces the previous one only when it is complete.
-5. Curriculum advances exactly once per completed session.
-6. Supervisor is active only during learning and cannot change curriculum.
-7. Listening Mask prevents protected listening content from being exposed at the wrong time.
-8. Refresh/restart during an in-progress workflow recovers without duplicate session/chat/data advancement.
-9. Rename failure does not break completion.
-10. No production workflow depends on parsing ChatGPT assistant output text.
+1. The configured ChatGPT Project can access the exact required Google Sheets/reference files and perform required durable writes without a manual approval step on every session. If this gate fails, the architecture must be revisited rather than replaced with assistant-output scraping.
+2. A new START creates one correct Project conversation and starts learning only after ChatGPT has read the required material.
+3. PAUSE persists a usable checkpoint and later START resumes the same conversation at the correct learning point.
+4. END runs the closed loop through ANALYZE, UPDATE, Review Planner and Session Brief preparation.
+5. A newly prepared Session Brief replaces the previous one only when it is complete.
+6. Curriculum advances exactly once per completed session.
+7. Supervisor is active only during learning and cannot change curriculum.
+8. Listening Mask prevents protected listening content from being exposed at the wrong time.
+9. Refresh/restart during an in-progress workflow recovers without duplicate session/chat/data advancement.
+10. Rename failure does not break completion.
+11. No production workflow depends on parsing ChatGPT assistant output text.
 
 ---
 
