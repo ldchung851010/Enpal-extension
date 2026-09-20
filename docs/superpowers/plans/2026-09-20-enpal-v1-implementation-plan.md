@@ -1,5 +1,7 @@
 # EnPal V1 Implementation Plan
 
+**Status:** DRAFT FOR REVIEW
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the approved EnPal V1 Chrome Extension closed loop: setup → START/RESUME → Voice learning with optional Supervisor/Listening Mask → PAUSE or END → ANALYZE → UPDATE → Review Planner → Session Brief staging/promotion → READY, with deterministic recovery.
