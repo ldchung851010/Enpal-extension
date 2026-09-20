@@ -1,9 +1,9 @@
 # EnPal Extension V1 — Đặc tả Kỹ thuật
 
-**Trạng thái:** BẢN NHÁP ĐỂ REVIEW CUỐI  
+**Trạng thái:** ĐÃ DUYỆT  
 **Ngày:** 2026-09-20  
-**Revision:** Khóa kiến trúc sau review đa vai trò  
-**Authority:** Sau khi được duyệt, tài liệu này là kiến trúc runtime canonical của EnPal Extension V1.  
+**Revision:** Đã duyệt sau khi khóa kiến trúc qua review đa vai trò  
+**Authority:** Tài liệu này là kiến trúc runtime canonical đã được duyệt của EnPal Extension V1.  
 **Project Control:** Quản lý dự án / Project Control nằm ngoài learner runtime của EnPal.
 
 ---
