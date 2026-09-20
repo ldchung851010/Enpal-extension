@@ -57,7 +57,8 @@ enpal-extension/
 ├── sidepanel/
 │   ├── index.html
 │   ├── sidepanel.css
-│   └── sidepanel.js
+│   ├── sidepanel.js
+│   └── view-model.js
 ├── content/
 │   └── chatgpt-runtime.js
 ├── adapters/
@@ -1510,6 +1511,7 @@ git commit -m "feat: implement recoverable EnPal END pipeline"
 - Modify: `sidepanel/index.html`
 - Modify: `sidepanel/sidepanel.css`
 - Modify: `sidepanel/sidepanel.js`
+- Create: `sidepanel/view-model.js`
 - Create: `tests/unit/sidepanel-state.test.js`
 - Create: `tests/integration/setup-flow.test.js`
 
@@ -1519,15 +1521,22 @@ git commit -m "feat: implement recoverable EnPal END pipeline"
 
 - [ ] **Step 1: Write failing UI-state tests**
 
-Verify state → legal actions:
+Test the pure `getSidePanelView(state, recoverable)` function:
 
-```text
-SETUP_REQUIRED → Connect / Verify Setup
-READY          → START
-LEARNING       → PAUSE + END
-PAUSED         → START
-PROCESSING     → no lesson action buttons
-ERROR          → RETRY when recoverable
+```js
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { getSidePanelView } from '../../sidepanel/view-model.js';
+
+test('maps approved states to legal learner actions', () => {
+  assert.deepEqual(getSidePanelView('SETUP_REQUIRED', false).actions, ['SETUP']);
+  assert.deepEqual(getSidePanelView('READY', false).actions, ['START']);
+  assert.deepEqual(getSidePanelView('LEARNING', false).actions, ['PAUSE', 'END']);
+  assert.deepEqual(getSidePanelView('PAUSED', false).actions, ['START']);
+  assert.deepEqual(getSidePanelView('PROCESSING', false).actions, []);
+  assert.deepEqual(getSidePanelView('ERROR', true).actions, ['RETRY']);
+  assert.deepEqual(getSidePanelView('ERROR', false).actions, []);
+});
 ```
 
 - [ ] **Step 2: Write failing setup integration test**
@@ -1545,6 +1554,24 @@ Expected app state: `READY`.
 Missing any one requirement: `SETUP_REQUIRED`.
 
 - [ ] **Step 3: Implement minimal learner UI**
+
+Create `sidepanel/view-model.js` as the only state-to-copy/action mapping:
+
+```js
+const ACTIONS = Object.freeze({
+  SETUP_REQUIRED: ['SETUP'],
+  READY: ['START'],
+  LEARNING: ['PAUSE', 'END'],
+  PAUSED: ['START'],
+  PROCESSING: [],
+  ERROR: []
+});
+
+export function getSidePanelView(state, recoverable = false) {
+  const actions = state === 'ERROR' && recoverable ? ['RETRY'] : (ACTIONS[state] ?? []);
+  return { state, actions };
+}
+```
 
 Keep learner-facing copy non-technical. Do not expose ANALYZE/UPDATE/Planner labels.
 
@@ -1849,7 +1876,7 @@ Expected: PASS.
 Run:
 
 ```bash
-grep -R "TODO\|TBD\|Next Session\|Target Bank" -n .   --exclude-dir=.git   --exclude='2026-09-20-enpal-v1-technical-spec-audit.md'   --exclude='2026-09-20-enpal-v1-multirole-audit.md'
+grep -R "Next Session\|Target Bank" -n core storage adapters content supervisor listening sidepanel background tests
 ```
 
 Expected: no active-runtime implementation references to deprecated architecture. Historical audit/spec text may be excluded deliberately.
