@@ -20,11 +20,9 @@ function extractSection(markdown, headingPattern) {
   const start = lines.findIndex((line) => headingPattern.test(line.trim()));
   if (start === -1) return '';
 
-  const level = (lines[start].match(/^#+/) ?? [''])[0].length;
   const collected = [];
   for (let index = start + 1; index < lines.length; index += 1) {
-    const heading = lines[index].match(/^(#+)\s+/);
-    if (heading && heading[1].length <= level) break;
+    if (/^#+\s+/.test(lines[index])) break;
     collected.push(lines[index]);
   }
   return collected.join('\n');
@@ -32,10 +30,19 @@ function extractSection(markdown, headingPattern) {
 
 export function parseImplementationPlan(markdown) {
   const gateText = extractSection(markdown, /^##\s+Pre-Execution Gates\b/i);
-  const gateCounts = countCheckboxes(gateText);
+  const gateMatches = [...gateText.matchAll(/^\s*-\s*\[([ xX])\]\s+(.+)$/gm)];
+  const gateItems = gateMatches.map((match) => ({
+    label: match[2].trim(),
+    completed: match[1].toLowerCase() === 'x'
+  }));
+  const gateCounts = {
+    completed: gateItems.filter((item) => item.completed).length,
+    total: gateItems.length
+  };
   const gates = {
     ...gateCounts,
-    percent: percent(gateCounts.completed, gateCounts.total)
+    percent: percent(gateCounts.completed, gateCounts.total),
+    items: gateItems
   };
 
   const taskHeading = /^###\s+Task\s+(\d+):\s*(.+?)\s*$/gm;
