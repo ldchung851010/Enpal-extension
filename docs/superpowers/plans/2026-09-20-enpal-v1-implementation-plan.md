@@ -454,8 +454,6 @@ git commit -m "feat: add durable local recovery journal"
 
 ### Task 3: Add Chrome Identity OAuth and a Thin Sheets Client
 
-<!-- ENPAL_BLOCKED: Production Chrome Extension OAuth client ID is required to finish manifest OAuth configuration and live Google Sheets verification. -->
-
 **Files:**
 - Modify: `manifest.json`
 - Create: `storage/google-auth.js`
@@ -527,7 +525,7 @@ node --test tests/unit/google-auth.test.js tests/unit/sheets-client.test.js
 
 Expected: FAIL because modules do not exist.
 
-- [ ] **Step 3: Implement OAuth + Sheets client**
+- [x] **Step 3: Implement OAuth + Sheets client**
 
 Create `storage/google-auth.js`:
 
@@ -588,7 +586,7 @@ export function createSheetsClient({ getToken, fetchImpl = fetch }) {
 }
 ```
 
-**Execution note (2026-09-20):** `storage/google-auth.js` and `storage/sheets-client.js` are implemented and verified. The manifest portion below remains blocked until the real production OAuth client ID exists.
+**Execution note (2026-09-20):** OAuth + Sheets client implementation is complete. The manifest is pinned to stable Extension ID `lnnnbbkifillljlhcpaekmjaemljlmkd` via the public `key`, and uses the production Chrome OAuth client `75024264025-jfk5jl6gip980b1fubg5jvmsnsdbqcf5.apps.googleusercontent.com`. Live extension read/write verification remains a separate platform gate before Task 4.
 
 Modify `manifest.json` to:
 - remove the unused generic `https://www.googleapis.com/*` host permission;
@@ -619,7 +617,7 @@ npm run test:unit
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add manifest.json storage tests

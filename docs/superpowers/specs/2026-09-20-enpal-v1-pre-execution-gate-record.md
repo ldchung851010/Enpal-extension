@@ -10,11 +10,11 @@
 |---|---|---|
 | Target ChatGPT Project reads exact canonical runtime sources | OPEN | Requires a live test inside the configured ChatGPT Project against the new canonical URLs. Current connector access does not prove Project-context access. |
 | Target ChatGPT Project writes required runtime Sheets without per-lesson approval | OPEN | Historical spike was conditional. Exact Project → runtime Sheet flow still requires live proof. |
-| Extension OAuth reads/writes configured Sheets | DEFERRED | Task 3 implements Chrome Identity OAuth. This blocks Google repository integration after Task 3, not Tasks 1–2. |
+| Extension OAuth reads/writes configured Sheets | OPEN | Task 3 OAuth + Sheets client and manifest configuration are complete. A live loaded-extension read/write test against the configured runtime Sheets is still required before Task 4. |
 | Voice START/STOP semantic trusted-input mechanism | PASS (spike) | Previously verified in the supported desktop Chrome/ChatGPT environment. Must be reconfirmed in live adapter/E2E acceptance. |
 | Listening Mask protects content before protected controls render | PASS (spike) | Previously verified. Must be reconfirmed for protected Listening E2E. |
 | Runtime contracts aligned to approved spec | PASS | Canonical START, PAUSE, END, ANALYZE, UPDATE, Review Planner, Supervisor, Session Brief Contract and exact-source registry created and read back. |
-| Production Chrome Extension OAuth client ID exists | OPEN | Search of repo and Drive found no actual `*.apps.googleusercontent.com` client ID. Required before Task 3 manifest configuration. |
+| Production Chrome Extension OAuth client ID exists | PASS | Chrome Extension OAuth client `75024264025-jfk5jl6gip980b1fubg5jvmsnsdbqcf5.apps.googleusercontent.com` was created for stable Extension ID `lnnnbbkifillljlhcpaekmjaemljlmkd` and is now configured in `manifest.json`. |
 | Supervisor failure policy / transport boundary | PASS | Canonical contract defines fail-open DEGRADED/UNAVAILABLE behavior; no Observer/backend introduced. |
 
 ## Canonical Runtime Data Sources
@@ -71,7 +71,7 @@ The new Curriculum + ACTIVE Session Brief contain **smoke-test bootstrap data**,
 ## Implementation Gate Timing
 
 - Tasks 1–2 may proceed now.
-- Task 3 may begin, but final manifest OAuth configuration requires the production OAuth client ID.
-- Task 4+ Google integration requires Extension OAuth verification.
+- Task 3 manifest OAuth configuration is complete.
+- Task 4+ Google integration requires live Extension OAuth read/write verification.
 - Live START/RESUME/END acceptance requires the two OPEN target-Project gates.
 - Release requires all gates plus live E2E acceptance.
