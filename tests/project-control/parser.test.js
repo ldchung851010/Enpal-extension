@@ -11,8 +11,9 @@ const plan = `
 - [x] Checkbox outside tracked areas
 
 ## Pre-Execution Gates
-- [x] Gate A
-- [ ] Gate B
+- [x] Gate A — **PASS: verified**
+- [ ] Gate B — **OPEN: live proof required**
+- [ ] Gate C — **DEFERRED TO TASK 3**
 
 ## File Structure
 - [x] Also outside tracked areas
@@ -32,11 +33,15 @@ const plan = `
 test('parses gates, tasks, progress, and blockers', () => {
   const result = parseImplementationPlan(plan);
 
-  assert.equal(result.gates.total, 2);
+  assert.equal(result.gates.total, 3);
   assert.equal(result.gates.completed, 1);
+  assert.equal(result.gates.pass, 1);
+  assert.equal(result.gates.open, 1);
+  assert.equal(result.gates.deferred, 1);
   assert.deepEqual(result.gates.items, [
-    { label: 'Gate A', completed: true },
-    { label: 'Gate B', completed: false }
+    { label: 'Gate A', detail: 'PASS: verified', status: 'PASS', completed: true },
+    { label: 'Gate B', detail: 'OPEN: live proof required', status: 'OPEN', completed: false },
+    { label: 'Gate C', detail: 'DEFERRED TO TASK 3', status: 'DEFERRED', completed: false }
   ]);
   assert.equal(result.tasks.length, 2);
 
