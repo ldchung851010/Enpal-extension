@@ -454,6 +454,8 @@ git commit -m "feat: add durable local recovery journal"
 
 ### Task 3: Add Chrome Identity OAuth and a Thin Sheets Client
 
+<!-- ENPAL_BLOCKED: Production Chrome Extension OAuth client ID is required to finish manifest OAuth configuration and live Google Sheets verification. -->
+
 **Files:**
 - Modify: `manifest.json`
 - Create: `storage/google-auth.js`
@@ -467,7 +469,7 @@ git commit -m "feat: add durable local recovery journal"
 - Produces: `createSheetsClient({ getToken, fetchImpl })` with `getValues()`, `updateValues()`, `batchUpdate()`.
 - Consumed by: all Google repositories.
 
-- [ ] **Step 1: Write failing OAuth and HTTP tests**
+- [x] **Step 1: Write failing OAuth and HTTP tests**
 
 Create `tests/unit/google-auth.test.js`:
 
@@ -517,7 +519,7 @@ test('reads an exact spreadsheet range with bearer auth', async () => {
 });
 ```
 
-- [ ] **Step 2: Run focused tests and confirm failure**
+- [x] **Step 2: Run focused tests and confirm failure**
 
 ```bash
 node --test tests/unit/google-auth.test.js tests/unit/sheets-client.test.js
@@ -586,6 +588,8 @@ export function createSheetsClient({ getToken, fetchImpl = fetch }) {
 }
 ```
 
+**Execution note (2026-09-20):** `storage/google-auth.js` and `storage/sheets-client.js` are implemented and verified. The manifest portion below remains blocked until the real production OAuth client ID exists.
+
 Modify `manifest.json` to:
 - remove the unused generic `https://www.googleapis.com/*` host permission;
 - add `oauth2.scopes = ["https://www.googleapis.com/auth/spreadsheets"]`;
@@ -606,7 +610,7 @@ esac
 
 Then set that exact literal value in `manifest.json`. The value is an OAuth client identifier, not a secret; do not invent or commit a fake value.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 node --test tests/unit/google-auth.test.js tests/unit/sheets-client.test.js
