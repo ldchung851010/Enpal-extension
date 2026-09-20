@@ -60,12 +60,18 @@ export function createDashboardController({
   let lastState = null;
 
   function emit(warnings = []) {
+    const warningText = warnings.filter(Boolean).join(' · ');
+    if (!sources.planMarkdown && !lastState) {
+      onWarning(warningText || 'Implementation plan unavailable');
+      return null;
+    }
+
     lastState = deriveDashboardState({
       ...sources,
       lastUpdated: now().toISOString()
     });
     onState(lastState);
-    onWarning(warnings.filter(Boolean).join(' · '));
+    onWarning(warningText);
     return lastState;
   }
 
