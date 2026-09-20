@@ -120,13 +120,10 @@ export function createDashboardController({
 
   async function refreshCommits() {
     const result = await Promise.allSettled([client.loadRecentCommits()]);
-    const warnings = [];
     if (result[0].status === 'fulfilled') {
       sources.commits = result[0].value;
-    } else {
-      warnings.push(errorMessage(result[0]));
     }
-    return emit(warnings);
+    return emit();
   }
 
   async function refreshAll() {
@@ -144,7 +141,7 @@ export function createDashboardController({
       const index = offset + 1;
       if (result.status === 'fulfilled') {
         sources[keys[index]] = result.value;
-      } else {
+      } else if (keys[index] !== 'commits') {
         warnings.push(errorMessage(result));
       }
     });

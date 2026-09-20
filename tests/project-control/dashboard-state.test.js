@@ -114,3 +114,48 @@ test('malformed plan refresh preserves the last good progress', async () => {
   assert.equal(second.overallPercent, 100);
   assert.match(warnings.at(-1), /expected 1 task/i);
 });
+
+
+test('commit API failure is non-critical and does not show a dashboard warning', async () => {
+  const warnings = [];
+  const controller = createDashboardController({
+    client: {
+      async loadPlan() { return '### Task 1: A\n- [x] done'; },
+      async loadEnglishSpec() { return '**Status:** APPROVED'; },
+      async loadVietnameseSpec() { return '**Trạng thái:** ĐÃ DUYỆT'; },
+      async loadRecentCommits() { throw new Error('Commits HTTP 403'); }
+    },
+    onWarning: (message) => warnings.push(message)
+  });
+
+  const state = await controller.refreshAll();
+
+  assert.equal(state.overallPercent, 100);
+  assert.equal(warnings.at(-1), '');
+});
+
+test('commit refresh failure keeps last good commits and stays silent', async () => {
+  let failCommits = false;
+  const warnings = [];
+  const controller = createDashboardController({
+    client: {
+      async loadPlan() { return '### Task 1: A\n- [x] done'; },
+      async loadEnglishSpec() { return '**Status:** APPROVED'; },
+      async loadVietnameseSpec() { return '**Trạng thái:** ĐÃ DUYỆT'; },
+      async loadRecentCommits() {
+        if (failCommits) throw new Error('Commits HTTP 403');
+        return [{ sha: 'abc1234', message: 'ok', date: '', url: '#' }];
+      }
+    },
+    onWarning: (message) => warnings.push(message)
+  });
+
+  const first = await controller.refreshAll();
+  assert.equal(first.commits.length, 1);
+
+  failCommits = true;
+  const second = await controller.refreshCommits();
+
+  assert.equal(second.commits.length, 1);
+  assert.equal(warnings.at(-1), '');
+});
