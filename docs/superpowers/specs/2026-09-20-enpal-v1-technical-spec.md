@@ -1,9 +1,9 @@
 # EnPal Extension V1 — Technical Spec
 
-**Status:** DRAFT FOR FINAL REVIEW  
+**Status:** APPROVED  
 **Date:** 2026-09-20  
-**Revision:** Multi-role architecture closure  
-**Authority:** This document is the canonical runtime architecture for EnPal Extension V1 once approved.  
+**Revision:** Approved after multi-role architecture closure  
+**Authority:** This document is the approved canonical runtime architecture for EnPal Extension V1.  
 **Project Control:** Project management / Project Control is outside EnPal learner runtime.
 
 ---
