@@ -204,13 +204,20 @@ function renderTasks(tasks) {
 }
 
 function renderGates(gates) {
-  if (!gates.items.length) return '<p class="empty">Chưa có gate dạng checklist.</p>';
-  return gates.items.map((gate) => `
-    <li class="gate-item ${gate.completed ? 'done' : ''}">
-      <span class="gate-check">${gate.completed ? '✓' : '○'}</span>
-      <span>${escapeHtml(gate.label)}</span>
-    </li>
-  `).join('');
+  if (!gates.items.length) return '<p class="empty">Chưa có platform gate.</p>';
+  return gates.items.map((gate) => {
+    const icon = gate.status === 'PASS' ? '✓' : gate.status === 'DEFERRED' ? '↳' : '○';
+    return `
+      <li class="gate-item ${statusClass(gate.status)}">
+        <span class="gate-check">${icon}</span>
+        <span>
+          <strong class="gate-state">${escapeHtml(gate.status)}</strong>
+          ${escapeHtml(gate.label)}
+          ${gate.detail ? `<small class="gate-detail">${escapeHtml(gate.detail)}</small>` : ''}
+        </span>
+      </li>
+    `;
+  }).join('');
 }
 
 function renderCommits(commits) {
@@ -258,7 +265,8 @@ export function renderDashboard(state, root = document) {
   root.querySelector('#last-refresh').textContent = formatDate(state.lastUpdated);
   root.querySelector('#tasks-grid').innerHTML = renderTasks(state.tasks);
   root.querySelector('#gates-list').innerHTML = renderGates(state.gates);
-  root.querySelector('#gate-summary').textContent = `${state.gates.completed}/${state.gates.total} hoàn tất`;
+  root.querySelector('#gate-summary').textContent =
+    `${state.gates.pass} PASS · ${state.gates.open} OPEN · ${state.gates.deferred} DEFERRED`;
   root.querySelector('#plan-status').textContent = state.implementationPlanStatus;
   root.querySelector('#spec-en-status').textContent = state.englishSpecStatus;
   root.querySelector('#spec-vi-status').textContent = state.vietnameseSpecStatus;
