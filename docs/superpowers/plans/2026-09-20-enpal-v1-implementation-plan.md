@@ -638,7 +638,9 @@ git commit -m "feat: add Google OAuth and Sheets client"
 - Create: `tests/unit/session-brief-repository.test.js`
 - Create: `tests/unit/review-ledger-repository.test.js`
 
-**Execution note (2026-09-20):** canonical workbook schema was read back before commit. The real `Sessions` tab uses `lifecycle_status` and `pipeline_phase`; the repository normalizes these to `status`/`phase` for workflow code while writing the canonical columns. `ACTIVE`/`_STAGING` sheet IDs are supplied explicitly from workbook metadata; no title discovery is used.\n\n**Interfaces:**
+**Execution note (2026-09-20):** canonical workbook schema was read back before commit. The real `Sessions` tab uses `lifecycle_status` and `pipeline_phase`; the repository normalizes these to `status`/`phase` for workflow code while writing the canonical columns. `ACTIVE`/`_STAGING` sheet IDs are supplied explicitly from workbook metadata; no title discovery is used.
+
+**Interfaces:**
 - `createCurriculumRepository({ sheets, spreadsheetId })`: `getLesson(sequence)`, `getNextLesson(completedSequences)`.
 - `createSessionRepository({ sheets, spreadsheetId })`: `listActive()`, `createStartingSession()`, `bindChat()`, `markState()`, `getById()`.
 - `createSessionBriefRepository({ sheets, spreadsheetId })`: `readActive()`, `readStaging()`, `verifyStaging()`, `promoteStaging()`.
