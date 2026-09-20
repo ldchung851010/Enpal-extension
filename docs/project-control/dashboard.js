@@ -49,7 +49,8 @@ export function createDashboardController({
   client,
   onState = () => {},
   onWarning = () => {},
-  now = () => new Date()
+  now = () => new Date(),
+  expectedTaskCount = null
 }) {
   const sources = {
     planMarkdown: '',
@@ -59,6 +60,25 @@ export function createDashboardController({
   };
 
   let lastState = null;
+
+  function applyPlanResult(result, warnings) {
+    if (result.status === 'rejected') {
+      warnings.push(errorMessage(result));
+      return;
+    }
+
+    if (expectedTaskCount !== null) {
+      const parsed = parseImplementationPlan(result.value);
+      if (parsed.tasks.length !== expectedTaskCount) {
+        warnings.push(
+          `Implementation plan parse failed: expected ${expectedTaskCount} task(s), found ${parsed.tasks.length}`
+        );
+        return;
+      }
+    }
+
+    sources.planMarkdown = result.value;
+  }
 
   function emit(warnings = []) {
     const warningText = warnings.filter(Boolean).join(' · ');
@@ -85,7 +105,9 @@ export function createDashboardController({
     const keys = ['planMarkdown', 'enSpecMarkdown', 'viSpecMarkdown'];
     const warnings = [];
 
-    results.forEach((result, index) => {
+    applyPlanResult(results[0], warnings);
+    results.slice(1).forEach((result, offset) => {
+      const index = offset + 1;
       if (result.status === 'fulfilled') {
         sources[keys[index]] = result.value;
       } else {
@@ -117,7 +139,9 @@ export function createDashboardController({
     const keys = ['planMarkdown', 'enSpecMarkdown', 'viSpecMarkdown', 'commits'];
     const warnings = [];
 
-    results.forEach((result, index) => {
+    applyPlanResult(results[0], warnings);
+    results.slice(1).forEach((result, offset) => {
+      const index = offset + 1;
       if (result.status === 'fulfilled') {
         sources[keys[index]] = result.value;
       } else {
@@ -270,7 +294,8 @@ if (typeof document !== 'undefined') {
   const controller = createDashboardController({
     client,
     onState: (state) => renderDashboard(state),
-    onWarning: (message) => setWarning(message)
+    onWarning: (message) => setWarning(message),
+    expectedTaskCount: 16
   });
 
   const start = async () => {
