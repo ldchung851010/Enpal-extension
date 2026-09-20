@@ -35,14 +35,14 @@
 
 Do not begin Task 1 until these approved-spec gates are re-run in the target production-like account and recorded:
 
-1. Target ChatGPT Project reads Teacher Role, both Teaching Methods, Session Brief, and EnPal Database from the configured sources.
-2. Target Project can perform the required Google Sheet writes without per-lesson manual approval.
-3. Extension Google OAuth can read/write the required Sheets.
-4. Voice START/STOP still works with the trusted semantic mechanism.
-5. Listening Mask still prevents protected text exposure.
-6. The runtime contract artifacts START, PAUSE, END, ANALYZE, UPDATE, Review Planner, Supervisor, Teacher Role, Speaking Method, and Listening Method are aligned with the approved spec.
-7. The production Google OAuth client ID for this Chrome Extension is available to the executor before Task 3.
-8. The Supervisor live decision transport, if available for V1, is documented behind the `decisionProvider` interface before Task 7; if no verified transport exists, V1 runs the approved fail-open DEGRADED path rather than inventing a second LLM/backend.
+- [ ] Target ChatGPT Project reads Teacher Role, both Teaching Methods, Session Brief, and EnPal Database from the configured sources.
+- [ ] Target Project can perform the required Google Sheet writes without per-lesson manual approval.
+- [ ] Extension Google OAuth can read/write the required Sheets.
+- [ ] Voice START/STOP still works with the trusted semantic mechanism.
+- [ ] Listening Mask still prevents protected text exposure.
+- [ ] The runtime contract artifacts START, PAUSE, END, ANALYZE, UPDATE, Review Planner, Supervisor, Teacher Role, Speaking Method, and Listening Method are aligned with the approved spec.
+- [ ] The production Google OAuth client ID for this Chrome Extension is available to the executor before Task 3.
+- [ ] The Supervisor live decision transport, if available for V1, is documented behind the `decisionProvider` interface before Task 7; if no verified transport exists, V1 runs the approved fail-open DEGRADED path rather than inventing a second LLM/backend.
 
 If any correctness-critical gate fails, stop and update the spec instead of adding a DOM-scraping fallback. Supervisor transport alone is non-blocking because the approved policy is fail-open.
 
