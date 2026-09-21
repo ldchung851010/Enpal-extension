@@ -113,8 +113,15 @@ function buildTeachingControl({
 }) {
   const method = teachingMethodFor(config, brief);
   const lines = [
+    'Workspace ID: ' + String(config.id ?? ''),
     `Teacher Role: ${config.teacherRoleUrl}`,
     `Teaching Method (${method.name}): ${method.url}`,
+    'EnPal Database: https://docs.google.com/spreadsheets/d/' +
+      config.databaseSpreadsheetId + '/edit',
+    'Session Brief source: https://docs.google.com/spreadsheets/d/' +
+      config.sessionBriefSpreadsheetId + '/edit',
+    'Review Ledger source: https://docs.google.com/spreadsheets/d/' +
+      config.reviewLedgerSpreadsheetId + '/edit',
     'ACTIVE Session Brief:',
     JSON.stringify(brief)
   ];
@@ -510,8 +517,12 @@ export function createWorkflow(deps) {
       type: 'PAUSE',
       sessionId: session.session_id,
       body: [
+        'Workspace ID: ' + String(config.id ?? ''),
+        'Exact EnPal Database: https://docs.google.com/spreadsheets/d/' +
+          config.databaseSpreadsheetId + '/edit',
         'Create and persist the Pause Checkpoint for this active Session.',
-        'Write the semantic checkpoint to the durable Session record.',
+        'Write the semantic checkpoint to the durable Session record for session_id=' +
+          session.session_id + '.',
         'After that write succeeds, set lifecycle_status=PAUSED and pipeline_phase=PAUSE_COMMITTED.',
         'Do not run ANALYZE, UPDATE, Review Planner, or replace the ACTIVE Session Brief.'
       ].join('\n')
@@ -634,9 +645,13 @@ export function createWorkflow(deps) {
         current.session_id,
         'ANALYZE',
         [
+          'Workspace ID: ' + String(config.id ?? ''),
+          'Exact EnPal Database: https://docs.google.com/spreadsheets/d/' +
+            config.databaseSpreadsheetId + '/edit',
           'Analyze only pedagogical teacher/learner evidence from this lesson.',
           'Exclude all ENPAL_CONTROL traffic from lesson evidence.',
-          'Persist the required ANALYZE result to the active Session record.',
+          'Persist the required ANALYZE result to Session ' +
+            current.session_id + '.',
           'Only after the durable result is written, set lifecycle_status=PROCESSING and pipeline_phase=ANALYZE_COMMITTED.'
         ].join('\n')
       );
@@ -652,7 +667,10 @@ export function createWorkflow(deps) {
         [
           'Use only the verified ANALYZE result from the active Session.',
           'Apply the approved Review Ledger transition rules.',
-          'Exact Review Ledger spreadsheet ID: ' + config.reviewLedgerSpreadsheetId,
+          'Exact EnPal Database: https://docs.google.com/spreadsheets/d/' +
+            config.databaseSpreadsheetId + '/edit',
+          'Exact Review Ledger: https://docs.google.com/spreadsheets/d/' +
+            config.reviewLedgerSpreadsheetId + '/edit',
           'Verify the Review Ledger write before setting pipeline_phase=UPDATE_COMMITTED.',
           'Keep lifecycle_status=PROCESSING.'
         ].join('\n')
@@ -670,7 +688,10 @@ export function createWorkflow(deps) {
         [
           'Create the next Session Brief using only these two approved sources.',
           'Exact next Base Lesson: ' + JSON.stringify(nextLesson),
-          'Exact Review Ledger spreadsheet ID: ' + config.reviewLedgerSpreadsheetId,
+          'Exact Review Ledger: https://docs.google.com/spreadsheets/d/' +
+            config.reviewLedgerSpreadsheetId + '/edit',
+          'Exact Session Brief Sheet: https://docs.google.com/spreadsheets/d/' +
+            config.sessionBriefSpreadsheetId + '/edit',
           'Do not replace or alter the Base Lesson core curriculum identity.',
           'Write the complete next Session Brief to _STAGING only.'
         ].join('\n')
