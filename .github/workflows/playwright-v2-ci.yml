@@ -25,5 +25,8 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      - name: Run existing EnPal regression suite
+        run: npm test
+
       - name: Run Playwright gate
         run: npm run test:playwright
