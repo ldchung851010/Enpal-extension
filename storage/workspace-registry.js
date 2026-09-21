@@ -1,8 +1,11 @@
-import { loadWorkspaceConfig } from '../core/config.js';
+import { loadWorkspaceConfig, isWorkspaceRuntimeReady } from '../core/config.js';
 import { EnpalError, ERROR_CODES } from '../core/errors.js';
 
 export const WORKSPACES_KEY = 'enpalWorkspaces';
 export const ACTIVE_WORKSPACE_KEY = 'enpalActiveWorkspaceId';
+export { isWorkspaceRuntimeReady };
+
+const WORKSPACE_PREFIX = 'enpalWorkspace:';
 
 const STATEFUL_SOURCE_FIELDS = Object.freeze([
   'projectUrl',
@@ -67,6 +70,29 @@ export function createWorkspaceRegistry(
       [WORKSPACES_KEY]: workspaces.map(clone),
       [ACTIVE_WORKSPACE_KEY]: activeId
     });
+  }
+
+  async function clearWorkspaceNamespace(id) {
+    const all = await chromeApi.storage.local.get(null);
+    const prefix = WORKSPACE_PREFIX + id + ':';
+    const keys = Object.keys(all ?? {}).filter(key => key.startsWith(prefix));
+    if (keys.length > 0) await chromeApi.storage.local.remove(keys);
+  }
+
+  function runtimeIdentityChanged(previous, next) {
+    if (!previous) return false;
+    return [
+      'projectUrl',
+      'curriculumSpreadsheetId',
+      'databaseSpreadsheetId',
+      'sessionBriefSpreadsheetId',
+      'reviewLedgerSpreadsheetId',
+      'teacherRoleUrl',
+      'speakingMethodUrl',
+      'listeningMethodUrl',
+      'sessionBriefActiveSheetId',
+      'sessionBriefStagingSheetId'
+    ].some(key => previous[key] !== next[key]);
   }
 
   async function findOrThrow(id) {
@@ -151,7 +177,18 @@ export function createWorkspaceRegistry(
 
       const { activeId } = await readState();
       await writeState(next, activeId);
+      if (runtimeIdentityChanged(found, candidate)) {
+        await clearWorkspaceNamespace(id);
+      }
       return clone(candidate);
+    },
+
+    async save(input) {
+      const normalized = normalizeWorkspace(input);
+      const existing = await this.get(normalized.id);
+      return existing
+        ? this.update(normalized.id, normalized)
+        : this.add(normalized);
     },
 
     async setActive(id) {
@@ -178,6 +215,7 @@ export function createWorkspaceRegistry(
         : activeId;
 
       await writeState(next, nextActiveId);
+      await clearWorkspaceNamespace(id);
       return true;
     }
   };
