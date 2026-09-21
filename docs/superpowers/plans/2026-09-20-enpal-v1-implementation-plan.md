@@ -1239,7 +1239,7 @@ git commit -m "feat: add fail-open supervisor controller"
   - `RESUME_PROCESSING`
   - `CONSISTENCY_ERROR`.
 
-- [ ] **Step 1: Write the crash-matrix decision tests**
+- [x] **Step 1: Write the crash-matrix decision tests**
 
 At minimum:
 
@@ -1251,7 +1251,7 @@ test('PROCESSING produces RESUME_PROCESSING', () => {});
 test('no active session and valid ACTIVE brief produces READY', () => {});
 ```
 
-- [ ] **Step 2: Run focused test and confirm failure**
+- [x] **Step 2: Run focused test and confirm failure**
 
 ```bash
 node --test tests/unit/recovery.test.js
@@ -1259,7 +1259,7 @@ node --test tests/unit/recovery.test.js
 
 Expected: FAIL.
 
-- [ ] **Step 3: Implement pure recovery decision logic**
+- [x] **Step 3: Implement pure recovery decision logic**
 
 Keep `core/recovery.js` free of Chrome/Google calls. It receives already-read state and returns a decision only.
 
@@ -1289,7 +1289,7 @@ export function decideRecovery({ journal, activeSessions, activeBrief }) {
 }
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 node --test tests/unit/recovery.test.js
@@ -1298,7 +1298,7 @@ npm run test:unit
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add core/recovery.js tests
