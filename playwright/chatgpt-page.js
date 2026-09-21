@@ -118,14 +118,17 @@ async function userTurns(page) {
 }
 
 async function typeWithKeyboard(page, composer, message) {
-  await composer.click();
+  // Do not use pointer click here. ChatGPT can place sticky/fade layers
+  // above the composer that intercept mouse events even though the editor
+  // itself is visible. DOM focus + keyboard input avoids that fragile layer.
+  await composer.focus();
   await page.keyboard.press('Control+A').catch(() => {});
   await page.keyboard.press('Backspace').catch(() => {});
 
   const lines = String(message).split('\n');
   for (let index = 0; index < lines.length; index += 1) {
     if (lines[index]) {
-      await composer.pressSequentially(lines[index], { delay: 1 });
+      await page.keyboard.type(lines[index], { delay: 1 });
     }
     if (index < lines.length - 1) {
       await page.keyboard.press('Shift+Enter');
@@ -210,22 +213,11 @@ export function createChatGptPage(page, {
       const beforeTurns = await userTurns(page);
       await typeWithKeyboard(page, composer, message);
 
-      const sendDeadline = Date.now() + Math.min(3_000, submitTimeoutMs);
-      let send = null;
-
-      do {
-        send = await enabledSendControl(page);
-        if (send) break;
-        await sleep(100);
-      } while (Date.now() <= sendDeadline);
-
-      if (send) {
-        await send.click();
-      } else {
-        // Keyboard Enter is a real Playwright input event and is safer than
-        // treating text merely present in the composer as a successful send.
-        await composer.press('Enter');
-      }
+      // Submit through the focused composer. This is a real Playwright
+      // keyboard event and avoids pointer-event interception by ChatGPT's
+      // sticky/fade UI layers. Success is still verified from the rendered
+      // user turn below, so text merely sitting in the composer never passes.
+      await page.keyboard.press('Enter');
 
       return waitForSubmittedUserTurn(
         page,
