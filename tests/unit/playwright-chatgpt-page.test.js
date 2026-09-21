@@ -350,6 +350,40 @@ test('wrong-project conversation fails closed', async () => {
   );
 });
 
+test('visible fill text with stale Send state recovers through keyboard input', async () => {
+  const page = new FakePage();
+
+  page.composer.fillBroken = false;
+  const originalFill = FakeLocator.prototype.fill;
+
+  FakeLocator.prototype.fill = async function(text) {
+    const element = this.elements[0];
+    if (element?.kind === 'composer') {
+      element.text = text;
+      this.page.active = element;
+      return;
+    }
+    return originalFill.call(this, text);
+  };
+
+  try {
+    const chat = createChatGptPage(page, {
+      submitTimeoutMs: 20,
+      sleep: immediateSleep
+    });
+
+    const result = await chat.sendMessage(
+      'recover stale state',
+      projectRoute
+    );
+
+    assert.equal(result.sent, true);
+    assert.equal(page.turns[0].text, 'recover stale state');
+  } finally {
+    FakeLocator.prototype.fill = originalFill;
+  }
+});
+
 test('Send must be enabled before EnPal attempts activation', async () => {
   const page = new FakePage();
   page.composer.fillBroken = true;
