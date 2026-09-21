@@ -110,9 +110,12 @@ test('new START follows durable ordering and never starts Voice before chat bind
     'sessions.bindChat',
     'sessions.markState:IN_PROGRESS',
     'supervisor.start',
-    'chatgpt.startVoice'
+    'chatgpt.startVoice',
+    'journal.write'
   ];
   assert.deepEqual(events, ordered);
+  assert.equal(repos.journalState.learningReady, true);
+  assert.equal(repos.journalState.phase, 'LEARNING_ACTIVE');
 });
 
 test('START sends approved Teacher Role, correct Method, and ACTIVE Brief in ENPAL_CONTROL', async () => {

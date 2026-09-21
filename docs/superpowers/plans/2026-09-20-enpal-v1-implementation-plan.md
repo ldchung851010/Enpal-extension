@@ -1706,7 +1706,7 @@ git commit -m "feat: wire MV3 event-driven extension runtime"
 **Interfaces:**
 - Tests only; validates approved invariants across Tasks 8–13.
 
-- [ ] **Step 1: Encode all nine required crash windows**
+- [x] **Step 1: Encode all nine required crash windows**
 
 Create one table-driven test with cases:
 
@@ -1726,7 +1726,7 @@ const cases = [
 
 Each case supplies durable Sheet state + local journal state and asserts the first legal recovery action.
 
-- [ ] **Step 2: Add invariant assertions**
+- [x] **Step 2: Add invariant assertions**
 
 Every case must assert:
 
@@ -1736,7 +1736,7 @@ Every case must assert:
 - once `chat_url` is bound, no new conversation is created;
 - only `CHAT_CREATED_NOT_BOUND` may leave an orphan external chat.
 
-- [ ] **Step 3: Run the matrix and fix any workflow defects**
+- [x] **Step 3: Run the matrix and fix any workflow defects**
 
 Run:
 
@@ -1746,7 +1746,7 @@ node --test tests/integration/crash-recovery-matrix.test.js
 
 Expected: PASS. If it fails, fix the owning workflow/repository module rather than weakening the test.
 
-- [ ] **Step 4: Run the whole automated suite**
+- [x] **Step 4: Run the whole automated suite**
 
 ```bash
 npm test
@@ -1754,7 +1754,7 @@ npm test
 
 Expected: all tests PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add core storage tests

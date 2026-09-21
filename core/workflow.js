@@ -274,6 +274,14 @@ export function createWorkflow(deps) {
       );
     }
 
+    await journal.write({
+      sessionId: session.session_id,
+      chatUrl: boundSession.chat_url,
+      status: 'IN_PROGRESS',
+      phase: 'LEARNING_ACTIVE',
+      learningReady: true
+    });
+
     return { session: boundSession, supervisorStatus };
   }
 
@@ -406,6 +414,30 @@ export function createWorkflow(deps) {
     return {
       action: 'RESUMED',
       ...result,
+      tabId
+    };
+  }
+
+  async function recoverInProgress(session, brief) {
+    await verifyBrief(brief, session);
+
+    const tabId = await openBoundConversation(session);
+    await armMaskIfRequired(tabId, brief);
+    const supervisorStatus = await startSupervisorFailOpen(session, brief);
+    await chatgpt.startVoice(tabId);
+
+    await journal.write({
+      sessionId: session.session_id,
+      chatUrl: session.chat_url,
+      status: 'IN_PROGRESS',
+      phase: 'LEARNING_ACTIVE',
+      learningReady: true
+    });
+
+    return {
+      action: 'RECOVERED_IN_PROGRESS',
+      session,
+      supervisorStatus,
       tabId
     };
   }
@@ -803,6 +835,37 @@ export function createWorkflow(deps) {
     const activeSessions = await sessions.listActive();
     const activeBrief = await briefs.readActive();
     const journalState = await journal.read?.() ?? {};
+
+    const activeSession = activeSessions[0];
+    if (
+      activeSession?.status === 'IN_PROGRESS' &&
+      journalState.learningReady !== true
+    ) {
+      const result = await recoverInProgress(activeSession, activeBrief);
+      return { ...result, state: 'LEARNING' };
+    }
+
+    if (
+      activeSessions.length === 0 &&
+      journalState.appState === 'PROCESSING' &&
+      typeof journalState.sessionId === 'string' &&
+      journalState.sessionId
+    ) {
+      const referencedSession = await sessions.getById(journalState.sessionId);
+      if (
+        referencedSession?.status === 'PROCESSING' ||
+        (
+          referencedSession?.status === 'COMPLETED' &&
+          referencedSession?.phase === 'SESSION_COMPLETED'
+        )
+      ) {
+        const result = await resumeProcessingSession(
+          referencedSession,
+          journalState
+        );
+        return { ...result, state: 'READY' };
+      }
+    }
 
     const decision = decideRecovery({
       journal: journalState,
