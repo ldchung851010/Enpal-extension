@@ -236,3 +236,38 @@ test('setup result reason is rendered instead of a generic dead-end message', as
   assert.match(fakeDocument.elements.status.textContent, /Google authorization unavailable/);
   assert.equal(fakeDocument.elements['setup-action'].hidden, false);
 });
+
+
+test('controller reports learner state changes so workspace switching can be locked during active processing', async () => {
+  const states = [];
+  const workflow = {
+    async recover() {
+      return { state: 'READY' };
+    },
+    async start() {
+      return { action: 'STARTED' };
+    },
+    async pause() {
+      return { action: 'PAUSED' };
+    },
+    async end() {
+      return { action: 'READY' };
+    }
+  };
+  const fakeDocument = makeFakeDocument();
+  const controller = createSidePanelController({
+    workflow,
+    documentRef: fakeDocument,
+    onStateChange(state) {
+      states.push(state);
+    }
+  });
+
+  await controller.initialize();
+  await controller.invoke('START');
+  await controller.invoke('PAUSE');
+
+  assert.ok(states.includes('READY'));
+  assert.ok(states.includes('LEARNING'));
+  assert.ok(states.includes('PAUSED'));
+});

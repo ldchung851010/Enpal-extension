@@ -1,5 +1,10 @@
 import { getSidePanelView } from './view-model.js';
-import { createRuntimeWorkflow } from './runtime.js';
+import {
+  createRuntimeWorkflow,
+  DEFAULT_WORKSPACE
+} from './runtime.js';
+import { createWorkspaceRegistry } from '../storage/workspace-registry.js';
+import { createWorkspaceManager } from './workspace-manager.js';
 
 const ACTION_BUTTONS = Object.freeze({
   SETUP: 'setup-action',
@@ -26,7 +31,11 @@ function learnerStateFromResult(action, result) {
   return 'ERROR';
 }
 
-export function createSidePanelController({ workflow, documentRef = document }) {
+export function createSidePanelController({
+  workflow,
+  documentRef = document,
+  onStateChange = () => {}
+}) {
   let currentState = 'SETUP_REQUIRED';
   let recoverable = false;
   let diagnostic = '';
@@ -34,6 +43,7 @@ export function createSidePanelController({ workflow, documentRef = document }) 
   function render() {
     const view = getSidePanelView(currentState, recoverable);
     documentRef.documentElement.dataset.enpalState = view.state;
+    onStateChange(view.state);
 
     const status = documentRef.getElementById('status');
     if (status) {
@@ -83,6 +93,10 @@ export function createSidePanelController({ workflow, documentRef = document }) 
           result = await workflow.pause();
           break;
         case 'END':
+          currentState = 'PROCESSING';
+          recoverable = false;
+          diagnostic = '';
+          render();
           result = await workflow.end();
           break;
         case 'RETRY':
@@ -128,8 +142,68 @@ export function createSidePanelController({ workflow, documentRef = document }) 
   };
 }
 
+export async function bootstrapSidePanel({
+  chromeApi = chrome,
+  documentRef = document,
+  fetchImpl = fetch,
+  registry = null,
+  workflowFactory = createRuntimeWorkflow,
+  workspaceManagerFactory = createWorkspaceManager,
+  reload = () => globalThis.location?.reload()
+} = {}) {
+  const workspaceRegistry = registry ?? createWorkspaceRegistry(
+    chromeApi,
+    { defaultWorkspace: DEFAULT_WORKSPACE }
+  );
+  const activeWorkspace = await workspaceRegistry.ensureInitialized();
+  if (!activeWorkspace) {
+    throw new Error('At least one EnPal workspace is required');
+  }
+
+  const workflow = workflowFactory({
+    chromeApi,
+    fetchImpl,
+    workspace: activeWorkspace
+  });
+  const workspaceManager = workspaceManagerFactory({
+    registry: workspaceRegistry,
+    documentRef,
+    activeWorkspace,
+    reload
+  });
+
+  await workspaceManager.initialize();
+
+  const controller = createSidePanelController({
+    workflow,
+    documentRef,
+    onStateChange(state) {
+      if (typeof workspaceManager.setLearnerState === 'function') {
+        workspaceManager.setLearnerState(state);
+        return;
+      }
+      workspaceManager.setLocked?.(
+        state === 'LEARNING' || state === 'PROCESSING'
+      );
+    }
+  });
+  await controller.initialize();
+
+  return {
+    activeWorkspace,
+    workspaceManager,
+    controller,
+    workflow
+  };
+}
+
 if (typeof document !== 'undefined' && typeof chrome !== 'undefined') {
-  const workflow = createRuntimeWorkflow({ chromeApi: chrome });
-  const controller = createSidePanelController({ workflow, documentRef: document });
-  controller.initialize();
+  bootstrapSidePanel().catch((error) => {
+    const status = document.getElementById('status');
+    if (status) {
+      status.textContent =
+        'EnPal needs attention before continuing. ' +
+        (error?.message || String(error));
+    }
+  });
 }

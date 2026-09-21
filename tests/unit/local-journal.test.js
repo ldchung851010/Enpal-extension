@@ -49,3 +49,31 @@ test('clear removes only EnPal recovery state', async () => {
   assert.equal(chromeApi.__storage.unrelated, 'keep');
   assert.equal(chromeApi.__storage.enpalRecovery, undefined);
 });
+
+
+test('workspace journals use separate storage namespaces', async () => {
+  const chromeApi = makeFakeChrome();
+  const journalA = createLocalJournal(chromeApi, 'A');
+  const journalB = createLocalJournal(chromeApi, 'B');
+
+  await journalA.write({ sessionId: 'S-A', phase: 'ANALYZE_COMMITTED' });
+  await journalB.write({ sessionId: 'S-B', phase: 'PAUSE_COMMITTED' });
+
+  assert.deepEqual(await journalA.read(), {
+    sessionId: 'S-A',
+    phase: 'ANALYZE_COMMITTED'
+  });
+  assert.deepEqual(await journalB.read(), {
+    sessionId: 'S-B',
+    phase: 'PAUSE_COMMITTED'
+  });
+
+  await journalA.clear();
+
+  assert.deepEqual(await journalA.read(), {});
+  assert.deepEqual(await journalB.read(), {
+    sessionId: 'S-B',
+    phase: 'PAUSE_COMMITTED'
+  });
+  assert.equal(chromeApi.__storage.enpalRecovery, undefined);
+});

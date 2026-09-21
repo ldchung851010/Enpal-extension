@@ -17,6 +17,7 @@ body {
 }
 
 .brand,
+.workspace-card,
 .status-card,
 .actions {
   display: grid;
@@ -67,4 +68,74 @@ button[hidden] {
 button:disabled {
   cursor: default;
   opacity: 0.55;
+}
+
+
+.workspace-card {
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 12px;
+}
+
+.workspace-heading-row {
+  display: grid;
+  gap: 10px;
+}
+
+#workspace-select,
+.workspace-form input {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  border-radius: 8px;
+  font: inherit;
+  background: transparent;
+  color: inherit;
+}
+
+.workspace-buttons,
+.workspace-form-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.workspace-form-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.workspace-form,
+.workspace-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-form[hidden] {
+  display: none;
+}
+
+.workspace-form label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.workspace-form details {
+  margin-top: 4px;
+}
+
+.workspace-form summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.workspace-fields {
+  margin-top: 10px;
+}
+
+.workspace-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
 }

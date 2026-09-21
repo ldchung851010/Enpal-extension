@@ -8,6 +8,7 @@ import { createCurriculumRepository } from '../storage/curriculum-repository.js'
 import { createSessionRepository } from '../storage/session-repository.js';
 import { createSessionBriefRepository } from '../storage/session-brief-repository.js';
 import { createLocalJournal } from '../storage/local-journal.js';
+import { workspaceStorageKey } from '../storage/workspace-registry.js';
 
 export const PLATFORM_GATE_KEY = 'enpalPlatformGate';
 
@@ -25,6 +26,14 @@ export const RUNTIME_CONFIG = Object.freeze({
 const SESSION_BRIEF_SHEET_IDS = Object.freeze({
   active: 498055014,
   staging: 873615671
+});
+
+export const DEFAULT_WORKSPACE = Object.freeze({
+  id: 'english-engineering',
+  name: 'English Engineering',
+  ...RUNTIME_CONFIG,
+  sessionBriefActiveSheetId: SESSION_BRIEF_SHEET_IDS.active,
+  sessionBriefStagingSheetId: SESSION_BRIEF_SHEET_IDS.staging
 });
 
 function createDegradedSupervisor() {
@@ -51,18 +60,26 @@ function platformGateFingerprint(config) {
   });
 }
 
-async function readPlatformGateMarker(chromeApi, config) {
-  const result = await chromeApi.storage.local.get(PLATFORM_GATE_KEY);
-  const marker = result?.[PLATFORM_GATE_KEY];
+function platformGateKey(workspaceId) {
+  return workspaceId
+    ? workspaceStorageKey(workspaceId, 'platformGate')
+    : PLATFORM_GATE_KEY;
+}
+
+async function readPlatformGateMarker(chromeApi, config, workspaceId = null) {
+  const key = platformGateKey(workspaceId);
+  const result = await chromeApi.storage.local.get(key);
+  const marker = result?.[key];
   return (
     marker?.status === 'PASS' &&
     marker?.fingerprint === platformGateFingerprint(config)
   );
 }
 
-async function writePlatformGateMarker(chromeApi, config) {
+async function writePlatformGateMarker(chromeApi, config, workspaceId = null) {
+  const key = platformGateKey(workspaceId);
   await chromeApi.storage.local.set({
-    [PLATFORM_GATE_KEY]: {
+    [key]: {
       status: 'PASS',
       source: 'manual-live-confirmation',
       verifiedAt: new Date().toISOString(),
@@ -114,8 +131,27 @@ async function verifyRequiredSheets({ config, token, fetchImpl }) {
 export function createRuntimeWorkflow({
   chromeApi = chrome,
   fetchImpl = fetch,
-  config = RUNTIME_CONFIG
+  config = RUNTIME_CONFIG,
+  workspace = null
 } = {}) {
+  const runtimeConfig = workspace
+    ? {
+        projectUrl: workspace.projectUrl,
+        curriculumSpreadsheetId: workspace.curriculumSpreadsheetId,
+        databaseSpreadsheetId: workspace.databaseSpreadsheetId,
+        sessionBriefSpreadsheetId: workspace.sessionBriefSpreadsheetId,
+        reviewLedgerSpreadsheetId: workspace.reviewLedgerSpreadsheetId,
+        teacherRoleUrl: workspace.teacherRoleUrl,
+        speakingMethodUrl: workspace.speakingMethodUrl,
+        listeningMethodUrl: workspace.listeningMethodUrl
+      }
+    : config;
+  const workspaceId = workspace?.id ?? null;
+  const activeSheetId = workspace?.sessionBriefActiveSheetId
+    ?? SESSION_BRIEF_SHEET_IDS.active;
+  const stagingSheetId = workspace?.sessionBriefStagingSheetId
+    ?? SESSION_BRIEF_SHEET_IDS.staging;
+
   const getToken = (interactive = false) =>
     getGoogleAccessToken(chromeApi, interactive);
 
@@ -126,28 +162,28 @@ export function createRuntimeWorkflow({
 
   const curriculum = createCurriculumRepository({
     sheets,
-    spreadsheetId: config.curriculumSpreadsheetId
+    spreadsheetId: runtimeConfig.curriculumSpreadsheetId
   });
 
   const sessions = createSessionRepository({
     sheets,
-    spreadsheetId: config.databaseSpreadsheetId
+    spreadsheetId: runtimeConfig.databaseSpreadsheetId
   });
 
   const briefs = createSessionBriefRepository({
     sheets,
-    spreadsheetId: config.sessionBriefSpreadsheetId,
-    activeSheetId: SESSION_BRIEF_SHEET_IDS.active,
-    stagingSheetId: SESSION_BRIEF_SHEET_IDS.staging
+    spreadsheetId: runtimeConfig.sessionBriefSpreadsheetId,
+    activeSheetId,
+    stagingSheetId
   });
 
-  const journal = createLocalJournal(chromeApi);
+  const journal = createLocalJournal(chromeApi, workspaceId);
   const chatgpt = createChatGptAdapter(chromeApi);
   const mask = createListeningMaskController(chatgpt);
   const supervisor = createDegradedSupervisor();
 
   const setupGate = createSetupGate({
-    rawConfig: config,
+    rawConfig: runtimeConfig,
     authorizeGoogle: (interactive) => getToken(interactive),
     verifySheetsAccess: ({ config: setupConfig, token }) =>
       verifyRequiredSheets({
@@ -155,13 +191,15 @@ export function createRuntimeWorkflow({
         token,
         fetchImpl
       }),
-    hasPlatformGateMarker: () => readPlatformGateMarker(chromeApi, config),
-    markPlatformGateVerified: () => writePlatformGateMarker(chromeApi, config),
+    hasPlatformGateMarker: () =>
+      readPlatformGateMarker(chromeApi, runtimeConfig, workspaceId),
+    markPlatformGateVerified: () =>
+      writePlatformGateMarker(chromeApi, runtimeConfig, workspaceId),
     readActiveBrief: () => briefs.readActive()
   });
 
   return createWorkflow({
-    config,
+    config: runtimeConfig,
     setupGate,
     journal,
     sessions,

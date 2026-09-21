@@ -108,17 +108,34 @@ Google Drive có thể chứa các tài liệu instruction tĩnh như Teacher Ro
 
 Nó **không** được dùng như một runtime state store thứ hai.
 
-### ChatGPT Project
+### ChatGPT Project và Workspace Isolation
 
-Mọi learning conversation đều nằm trong một ChatGPT Project đã cấu hình.
+EnPal có thể quản lý nhiều learner Workspace.
 
-Machine identity dùng:
+Mỗi Workspace là một runtime boundary độc lập và sở hữu riêng:
+
+- ChatGPT Project URL;
+- Curriculum Sheet;
+- EnPal Database Sheet;
+- Session Brief Sheet;
+- Review Ledger Sheet;
+- các reference Teacher Role và Teaching Method;
+- namespace Recovery Journal local;
+- platform-verification marker.
+
+Một Workspace không được dùng chung với Workspace khác cùng ChatGPT Project, Curriculum Sheet, Database Sheet, Session Brief Sheet hoặc Review Ledger Sheet.
+
+Google OAuth authorization có thể dùng chung ở cấp extension/account, nhưng learning data và runtime state không bao giờ dùng chung giữa các Workspace.
+
+Machine identity bên trong một Workspace dùng:
 
 ```text
-session_id + exact chat_url
+workspace_id + session_id + exact chat_url
 ```
 
 Chat title chỉ là human metadata.
+
+Đổi Workspace chỉ thay active Workspace selector. Thao tác này không được mutate, copy, reset hoặc advance durable learning state của Workspace khác.
 
 ---
 
@@ -164,6 +181,8 @@ Sở hữu:
 
 Dùng `chrome.storage.local`.
 
+Recovery state được namespace theo `workspace_id`. Một Workspace chỉ được đọc, ghi hoặc clear recovery namespace của chính nó.
+
 Lưu workflow intent và recoverable machine state, không lưu authoritative learning truth.
 
 ### Supervisor Controller
@@ -177,6 +196,8 @@ Sở hữu preemptive masking và restore, tránh nhúng logic mask rải rác t
 ### Side Panel UI
 
 Chỉ hiển thị learner-facing state và các action hợp lệ.
+
+Side Panel đồng thời sở hữu learner-facing Workspace selection và local Workspace configuration. Không được đổi Workspace khi Workspace hiện tại đang LEARNING hoặc PROCESSING. Có thể rời một Workspace đang PAUSED để học Workspace khác, nhưng không được sửa hoặc xóa cấu hình của Workspace đang pause.
 
 ---
 
@@ -289,7 +310,7 @@ Spec này không khóa exact columns.
 
 ### One-active-session invariant
 
-Trong normal learner operation, tối đa chỉ có một Session ở trạng thái non-terminal.
+Trong normal learner operation, tối đa chỉ có một Session ở trạng thái non-terminal **trên mỗi Workspace**.
 
 Các active lifecycle state tương đương có thể gồm:
 
@@ -300,7 +321,7 @@ PAUSED
 PROCESSING
 ```
 
-Nếu durable data chứa nhiều hơn một active Session, EnPal vào consistency error và không tự đoán Session nào cần dùng.
+Nếu durable data của một Workspace chứa nhiều hơn một active Session, EnPal vào consistency error cho Workspace đó và không tự đoán Session nào cần dùng. Một PAUSED Session ở Workspace A không chặn normal operation ở Workspace B.
 
 ### Pause Checkpoint
 

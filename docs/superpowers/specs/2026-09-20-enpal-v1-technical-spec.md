@@ -108,17 +108,34 @@ Google Drive may hold static instruction documents such as Teacher Role or Teach
 
 It is **not** used as a second runtime state store.
 
-### ChatGPT Project
+### ChatGPT Project and Workspace Isolation
 
-All learning conversations live inside one configured ChatGPT Project.
+EnPal may manage multiple learner Workspaces.
 
-Machine identity uses:
+Each Workspace is an isolated runtime boundary and owns its own configured:
+
+- ChatGPT Project URL;
+- Curriculum Sheet;
+- EnPal Database Sheet;
+- Session Brief Sheet;
+- Review Ledger Sheet;
+- Teacher Role and Teaching Method references;
+- local Recovery Journal namespace;
+- platform-verification marker.
+
+A Workspace must not reuse another Workspace's ChatGPT Project, Curriculum Sheet, Database Sheet, Session Brief Sheet, or Review Ledger Sheet.
+
+Google OAuth authorization may be shared at extension/account level, but learning data and runtime state are never shared across Workspaces.
+
+Machine identity inside a Workspace uses:
 
 ```text
-session_id + exact chat_url
+workspace_id + session_id + exact chat_url
 ```
 
 Chat title is human metadata only.
+
+Switching Workspace changes only the active Workspace selector. It must not mutate, copy, reset, or advance another Workspace's durable learning state.
 
 ---
 
@@ -164,6 +181,8 @@ Owns:
 
 Uses `chrome.storage.local`.
 
+Recovery state is namespaced by `workspace_id`. A Workspace may read, write, or clear only its own recovery namespace.
+
 Stores workflow intent and recoverable machine state, not authoritative learning truth.
 
 ### Supervisor Controller
@@ -177,6 +196,8 @@ Owns preemptive masking and restoration without embedding mask behavior througho
 ### Side Panel UI
 
 Shows learner-facing state and legal actions only.
+
+The Side Panel also owns learner-facing Workspace selection and local Workspace configuration. Workspace switching is blocked while the current Workspace is LEARNING or PROCESSING. A PAUSED Workspace may be left to study another Workspace, but its configuration may not be edited or deleted while paused.
 
 ---
 
@@ -289,7 +310,7 @@ Exact columns are not frozen by this spec.
 
 ### One-active-session invariant
 
-At most one Session may be non-terminal for normal learner operation.
+At most one Session may be non-terminal **per Workspace** for normal learner operation.
 
 Equivalent active lifecycle states may include:
 
@@ -300,7 +321,7 @@ PAUSED
 PROCESSING
 ```
 
-If durable data contains more than one active Session, EnPal enters a consistency error and does not guess which one to use.
+If one Workspace's durable data contains more than one active Session, EnPal enters a consistency error for that Workspace and does not guess which one to use. A PAUSED Session in Workspace A does not block normal operation in Workspace B.
 
 ### Pause Checkpoint
 
