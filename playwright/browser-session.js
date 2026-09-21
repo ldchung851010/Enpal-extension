@@ -54,7 +54,8 @@ export async function attachToChrome({
     page,
     endpoint,
     async close() {
-      await browser.close();
+      // This Chrome process belongs to the user. Ending the Node process
+      // disconnects Playwright; do not close the externally launched browser.
     }
   };
 }
