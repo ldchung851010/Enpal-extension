@@ -41,6 +41,8 @@
     ])
   });
 
+  const MASK_ATTRIBUTE = 'data-enpal-listening-mask';
+  const MASK_STYLE_ATTRIBUTE = 'data-enpal-listening-mask-style';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   function first(category) {
@@ -185,6 +187,43 @@
     return { ok: true, turns };
   }
 
+
+  function ensureMaskStyles() {
+    if (!document.documentElement || typeof document.createElement !== 'function') return false;
+    if (document.querySelector?.(`style[${MASK_STYLE_ATTRIBUTE}]`)) return true;
+
+    const style = document.createElement('style');
+    style.setAttribute(MASK_STYLE_ATTRIBUTE, '1');
+    style.textContent = [
+      `html[${MASK_ATTRIBUTE}="1"] [data-message-author-role]`,
+      `html[${MASK_ATTRIBUTE}="1"] [data-testid="conversation-turns"]`,
+      `html[${MASK_ATTRIBUTE}="1"] article[data-testid^="conversation-turn"]`
+    ].join(',\\n') + ' { visibility: hidden !important; }';
+
+    (document.head || document.documentElement).appendChild(style);
+    return true;
+  }
+
+  function setListeningMask(armed) {
+    if (!document.documentElement) {
+      return { ok: false, code: 'CHAT_UI_UNAVAILABLE', armed: false };
+    }
+
+    if (armed === true) {
+      if (!ensureMaskStyles()) {
+        return { ok: false, code: 'CHAT_UI_UNAVAILABLE', armed: false };
+      }
+      document.documentElement.setAttribute(MASK_ATTRIBUTE, '1');
+      return {
+        ok: true,
+        armed: document.documentElement.getAttribute(MASK_ATTRIBUTE) === '1'
+      };
+    }
+
+    document.documentElement.removeAttribute(MASK_ATTRIBUTE);
+    return { ok: true, armed: false };
+  }
+
   async function handleMessage(message) {
     switch (message?.action) {
       case 'CREATE_CONVERSATION':
@@ -204,7 +243,7 @@
       case 'GET_REALTIME_FEED':
         return getRealtimeFeed();
       case 'SET_LISTENING_MASK':
-        return { ok: false, code: 'CHAT_UI_UNAVAILABLE', armed: false };
+        return setListeningMask(message.armed === true);
       default:
         return failure(`Unsupported ChatGPT action: ${String(message?.action || '')}`);
     }
@@ -227,6 +266,7 @@
     focusVoiceControl,
     renameConversation,
     getRealtimeFeed,
+    setListeningMask,
     handleMessage
   });
 })();

@@ -963,7 +963,7 @@ git commit -m "feat: isolate ChatGPT Web adapter and control envelope"
 - `createListeningMaskController(chatGptAdapter)`: `arm(tabId)`, `disarm(tabId)`.
 - Background message: `ENPAL_TRUSTED_ACTIVATE`.
 
-- [ ] **Step 1: Write failing debugger cleanup test**
+- [x] **Step 1: Write failing debugger cleanup test**
 
 Test the exact invariant:
 
@@ -994,7 +994,7 @@ test('always detaches debugger after trusted activation failure', async () => {
 });
 ```
 
-- [ ] **Step 2: Write failing mask tests**
+- [x] **Step 2: Write failing mask tests**
 
 Create concrete controller tests:
 
@@ -1037,7 +1037,7 @@ test('pause does not disarm the mask', async () => {
 });
 ```
 
-- [ ] **Step 3: Run focused tests and confirm failure**
+- [x] **Step 3: Run focused tests and confirm failure**
 
 ```bash
 node --test tests/unit/voice-debugger.test.js tests/unit/listening-mask-controller.test.js
@@ -1045,7 +1045,7 @@ node --test tests/unit/voice-debugger.test.js tests/unit/listening-mask-controll
 
 Expected: FAIL.
 
-- [ ] **Step 4: Implement minimal debugger + mask controller**
+- [x] **Step 4: Implement minimal debugger + mask controller**
 
 `background/voice-debugger.js` must use `try/finally`:
 
@@ -1074,7 +1074,7 @@ export async function activateFocusedControlWithDebugger(chromeApi, tabId) {
 
 Mask controller delegates DOM work to the ChatGPT content runtime and requires a positive `{ armed: true }` acknowledgment before returning success.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```bash
 node --test tests/unit/voice-debugger.test.js tests/unit/listening-mask-controller.test.js
