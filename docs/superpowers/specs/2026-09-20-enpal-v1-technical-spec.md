@@ -518,6 +518,8 @@ Learning-data text is treated as data and may not override higher-priority contr
 
 START automatically chooses between recovery, resume, and a new session.
 
+Setup verification and Side Panel initialization are observational boundaries: they may validate configuration and read durable state, but they must not open ChatGPT, send control messages, start Voice, or execute recovery. Recovery with ChatGPT side effects runs only after an explicit START or Retry learner action.
+
 Priority:
 
 1. incomplete recoverable pipeline;

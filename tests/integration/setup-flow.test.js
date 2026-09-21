@@ -196,3 +196,171 @@ test('workflow confirms live Project access through setup gate, then re-runs set
   assert.equal(ready.state, 'READY');
   assert.equal(marker, true);
 });
+
+
+test('workflow.verifySetup is setup-only even when a STARTING Session exists', async () => {
+  const { gate } = makeSetup();
+  let repositoryReads = 0;
+  let chatCalls = 0;
+  const workflow = createWorkflow({
+    setupGate: gate,
+    sessions: {
+      async listActive() {
+        repositoryReads += 1;
+        return [{ session_id: 'S-001', status: 'STARTING', chat_url: '' }];
+      }
+    },
+    briefs: {
+      async readActive() {
+        repositoryReads += 1;
+        return validBrief();
+      }
+    },
+    journal: {
+      async read() {
+        repositoryReads += 1;
+        return { sessionId: 'S-001', pendingTabId: 77 };
+      }
+    },
+    chatgpt: new Proxy({}, {
+      get() {
+        return async () => {
+          chatCalls += 1;
+          throw new Error('Verify setup must not touch ChatGPT');
+        };
+      }
+    })
+  });
+
+  const result = await workflow.verifySetup({ interactive: true });
+
+  assert.equal(result.state, 'READY');
+  assert.equal(repositoryReads, 0);
+  assert.equal(chatCalls, 0);
+});
+
+test('workflow.inspect reports incomplete START as retryable without recovering it', async () => {
+  const { gate } = makeSetup();
+  let chatCalls = 0;
+  const session = {
+    session_id: 'S-001',
+    status: 'STARTING',
+    phase: 'SESSION_STUB_CREATED',
+    chat_url: ''
+  };
+  const workflow = createWorkflow({
+    setupGate: gate,
+    sessions: {
+      async listActive() {
+        return [session];
+      }
+    },
+    briefs: {
+      async readActive() {
+        return validBrief();
+      }
+    },
+    journal: {
+      async read() {
+        return { sessionId: 'S-001', pendingTabId: 77 };
+      }
+    },
+    chatgpt: new Proxy({}, {
+      get() {
+        return async () => {
+          chatCalls += 1;
+          throw new Error('Inspect must not touch ChatGPT');
+        };
+      }
+    })
+  });
+
+  const result = await workflow.inspect();
+
+  assert.equal(result.state, 'ERROR');
+  assert.equal(result.recoverable, true);
+  assert.match(result.reason, /incomplete START/i);
+  assert.equal(chatCalls, 0);
+});
+
+test('confirmPlatformGate verifies setup but does not recover a STARTING Session', async () => {
+  let marker = false;
+  const { gate } = makeSetup({
+    hasPlatformGateMarker: async () => marker,
+    markPlatformGateVerified: async () => {
+      marker = true;
+    }
+  });
+  let repositoryReads = 0;
+  const workflow = createWorkflow({
+    setupGate: gate,
+    sessions: {
+      async listActive() {
+        repositoryReads += 1;
+        throw new Error('confirmation must not inspect or recover Sessions');
+      }
+    },
+    briefs: {
+      async readActive() {
+        repositoryReads += 1;
+        return validBrief();
+      }
+    },
+    journal: {
+      async read() {
+        repositoryReads += 1;
+        return {};
+      }
+    }
+  });
+
+  const result = await workflow.confirmPlatformGate();
+
+  assert.equal(result.state, 'READY');
+  assert.equal(marker, true);
+  assert.equal(repositoryReads, 0);
+});
+
+
+test('workflow.inspect reports interrupted IN_PROGRESS recovery without restarting ChatGPT', async () => {
+  const { gate } = makeSetup();
+  let chatCalls = 0;
+  const workflow = createWorkflow({
+    setupGate: gate,
+    sessions: {
+      async listActive() {
+        return [{
+          session_id: 'S-002',
+          status: 'IN_PROGRESS',
+          phase: 'CHAT_BOUND',
+          chat_url: 'https://chatgpt.com/g/g-p-enpal/c/abc'
+        }];
+      }
+    },
+    briefs: {
+      async readActive() {
+        return validBrief();
+      }
+    },
+    journal: {
+      async read() {
+        return { sessionId: 'S-002', learningReady: false };
+      }
+    },
+    chatgpt: new Proxy({}, {
+      get() {
+        return async () => {
+          chatCalls += 1;
+          throw new Error('Inspect must not restart ChatGPT');
+        };
+      }
+    })
+  });
+
+  const result = await workflow.inspect();
+
+  assert.equal(result.state, 'ERROR');
+  assert.equal(result.recoverable, true);
+  assert.match(result.reason, /interrupted learning/i);
+  assert.equal(chatCalls, 0);
+});

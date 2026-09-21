@@ -827,6 +827,101 @@ export function createWorkflow(deps) {
   }
 
 
+  async function verifySetupOnly({ interactive = false } = {}) {
+    if (!setupGate) {
+      return { state: 'READY' };
+    }
+    return setupGate.verify({ interactive });
+  }
+
+  async function inspectCurrent() {
+    const setup = await verifySetupOnly({ interactive: false });
+    if (setup?.state !== 'READY') {
+      return setup;
+    }
+
+    const activeSessions = await sessions.listActive();
+    const activeBrief = await briefs.readActive();
+    const journalState = await journal.read?.() ?? {};
+
+    const activeSession = activeSessions[0];
+    if (
+      activeSession?.status === 'IN_PROGRESS' &&
+      journalState.learningReady !== true
+    ) {
+      return {
+        state: 'ERROR',
+        recoverable: true,
+        reason: 'An interrupted learning session is waiting for Retry.',
+        session: activeSession
+      };
+    }
+
+    if (
+      activeSessions.length === 0 &&
+      journalState.appState === 'PROCESSING' &&
+      typeof journalState.sessionId === 'string' &&
+      journalState.sessionId
+    ) {
+      return {
+        state: 'ERROR',
+        recoverable: true,
+        reason: 'An incomplete END pipeline is waiting for Retry.'
+      };
+    }
+
+    const decision = decideRecovery({
+      journal: journalState,
+      activeSessions,
+      activeBrief
+    });
+
+    switch (decision.action) {
+      case 'CONSISTENCY_ERROR':
+        return {
+          state: 'ERROR',
+          recoverable: false,
+          reason: 'More than one active Session exists'
+        };
+      case 'SETUP_REQUIRED':
+        return { state: 'SETUP_REQUIRED', action: 'SETUP_REQUIRED' };
+      case 'RECOVER_STARTING':
+        return {
+          state: 'ERROR',
+          recoverable: true,
+          reason: 'An incomplete START is waiting for Retry.',
+          session: decision.session
+        };
+      case 'RESUME_PAUSED':
+        return {
+          state: 'PAUSED',
+          action: 'PAUSED',
+          session: decision.session
+        };
+      case 'RESUME_PROCESSING':
+        return {
+          state: 'ERROR',
+          recoverable: true,
+          reason: 'An incomplete END pipeline is waiting for Retry.',
+          session: decision.session
+        };
+      case 'READY':
+        return decision.session
+          ? {
+              state: 'LEARNING',
+              action: 'ALREADY_IN_PROGRESS',
+              session: decision.session
+            }
+          : { state: 'READY', action: 'READY' };
+      default:
+        return {
+          state: 'ERROR',
+          recoverable: false,
+          reason: 'Unsupported recovery state: ' + String(decision.action)
+        };
+    }
+  }
+
   async function recoverCurrent({ interactiveSetup = false } = {}) {
     if (setupGate) {
       const setup = await setupGate.verify({ interactive: interactiveSetup });
@@ -978,6 +1073,14 @@ export function createWorkflow(deps) {
       return resumeProcessingCurrent();
     },
 
+    async verifySetup(options) {
+      return verifySetupOnly(options);
+    },
+
+    async inspect() {
+      return inspectCurrent();
+    },
+
     async recover(options) {
       return recoverCurrent(options);
     },
@@ -991,7 +1094,7 @@ export function createWorkflow(deps) {
         );
       }
       await setupGate.confirmPlatformGate();
-      return recoverCurrent({ interactiveSetup: true });
+      return verifySetupOnly({ interactive: true });
     }
   };
 }

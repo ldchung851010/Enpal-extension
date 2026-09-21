@@ -78,9 +78,17 @@ function makeFakeDocument() {
 test('Side Panel actions invoke only public workflow methods and render resulting learner state', async () => {
   const calls = [];
   const workflow = {
+    async verifySetup(options) {
+      calls.push(['verifySetup', options]);
+      return { state: 'READY' };
+    },
+    async inspect() {
+      calls.push(['inspect']);
+      return { state: 'READY' };
+    },
     async recover(options) {
       calls.push(['recover', options]);
-      return { state: options?.interactiveSetup ? 'READY' : 'READY' };
+      return { state: 'READY' };
     },
     async start() {
       calls.push(['start']);
@@ -127,7 +135,7 @@ test('Side Panel actions invoke only public workflow methods and render resultin
   assert.equal(fakeDocument.elements['start-action'].disabled, false);
 
   assert.deepEqual(calls, [
-    ['recover', { interactiveSetup: true }],
+    ['verifySetup', { interactive: true }],
     ['start'],
     ['pause'],
     ['start'],
@@ -139,6 +147,10 @@ test('Side Panel actions invoke only public workflow methods and render resultin
 test('Side Panel initializes from durable workflow recovery when reopened', async () => {
   const calls = [];
   const workflow = {
+    async inspect() {
+      calls.push(['inspect']);
+      return { state: 'LEARNING', action: 'ALREADY_IN_PROGRESS' };
+    },
     async recover(options) {
       calls.push(['recover', options]);
       return { state: 'LEARNING', action: 'ALREADY_IN_PROGRESS' };
@@ -152,7 +164,7 @@ test('Side Panel initializes from durable workflow recovery when reopened', asyn
 
   await controller.initialize();
 
-  assert.deepEqual(calls, [['recover', undefined]]);
+  assert.deepEqual(calls, [['inspect']]);
   assert.equal(fakeDocument.documentElement.dataset.enpalState, 'LEARNING');
   assert.equal(fakeDocument.elements['start-action'].hidden, false);
   assert.equal(fakeDocument.elements['start-action'].disabled, true);
@@ -166,6 +178,14 @@ test('Side Panel initializes from durable workflow recovery when reopened', asyn
 test('platform verification state exposes one explicit confirmation action', async () => {
   const calls = [];
   const workflow = {
+    async verifySetup(options) {
+      calls.push(['verifySetup', options]);
+      return { state: 'PLATFORM_VERIFICATION_REQUIRED' };
+    },
+    async inspect() {
+      calls.push(['inspect']);
+      return { state: 'PLATFORM_VERIFICATION_REQUIRED' };
+    },
     async recover(options) {
       calls.push(['recover', options]);
       return { state: 'PLATFORM_VERIFICATION_REQUIRED' };
@@ -188,7 +208,7 @@ test('platform verification state exposes one explicit confirmation action', asy
   await fakeDocument.elements['confirm-platform-action'].click();
 
   assert.deepEqual(calls, [
-    ['recover', { interactiveSetup: true }],
+    ['verifySetup', { interactive: true }],
     ['confirmPlatformGate']
   ]);
   assert.equal(fakeDocument.elements['start-action'].hidden, false);
@@ -226,7 +246,7 @@ test('real Side Panel HTML always renders START, PAUSE, and END as visible core 
 
 test('setup failure shows the concrete reason and keeps Verify setup available', async () => {
   const workflow = {
-    async recover() {
+    async verifySetup() {
       const error = new Error('Sessions sheet missing required status column');
       error.recoverable = false;
       throw error;
@@ -250,7 +270,7 @@ test('setup failure shows the concrete reason and keeps Verify setup available',
 
 test('setup result reason is rendered instead of a generic dead-end message', async () => {
   const workflow = {
-    async recover() {
+    async verifySetup() {
       return {
         state: 'SETUP_REQUIRED',
         reason: 'Google authorization unavailable'
@@ -274,6 +294,9 @@ test('setup result reason is rendered instead of a generic dead-end message', as
 test('controller reports learner state changes so workspace switching can be locked during active processing', async () => {
   const states = [];
   const workflow = {
+    async inspect() {
+      return { state: 'READY' };
+    },
     async recover() {
       return { state: 'READY' };
     },
@@ -303,4 +326,42 @@ test('controller reports learner state changes so workspace switching can be loc
   assert.ok(states.includes('READY'));
   assert.ok(states.includes('LEARNING'));
   assert.ok(states.includes('PAUSED'));
+});
+
+
+test('Verify setup and Side Panel initialization never call recovery', async () => {
+  const calls = [];
+  const workflow = {
+    async verifySetup(options) {
+      calls.push(['verifySetup', options]);
+      return { state: 'READY' };
+    },
+    async inspect() {
+      calls.push(['inspect']);
+      return {
+        state: 'ERROR',
+        recoverable: true,
+        reason: 'An incomplete START is waiting for Retry.'
+      };
+    },
+    async recover() {
+      calls.push(['recover']);
+      throw new Error('Recovery must require explicit Retry');
+    },
+    async start() {},
+    async pause() {},
+    async end() {}
+  };
+  const fakeDocument = makeFakeDocument();
+  const controller = createSidePanelController({ workflow, documentRef: fakeDocument });
+
+  await controller.initialize();
+  assert.equal(fakeDocument.elements['retry-action'].hidden, false);
+
+  await controller.invoke('SETUP');
+
+  assert.deepEqual(calls, [
+    ['inspect'],
+    ['verifySetup', { interactive: true }]
+  ]);
 });

@@ -26,6 +26,10 @@ test('bootstrap builds the learner workflow only from the active workspace confi
     }
   };
   const workflow = {
+    async inspect() {
+      calls.push(['inspect']);
+      return { state: 'READY' };
+    },
     async recover() {
       calls.push(['recover']);
       return { state: 'READY' };
@@ -72,7 +76,7 @@ test('bootstrap builds the learner workflow only from the active workspace confi
   assert.deepEqual(managerWorkspace, activeWorkspace);
   assert.deepEqual(calls, [
     ['ensureInitialized'],
-    ['recover']
+    ['inspect']
   ]);
 });
 

@@ -93,7 +93,7 @@ export function createSidePanelController({
       let result;
       switch (action) {
         case 'SETUP':
-          result = await workflow.recover({ interactiveSetup: true });
+          result = await workflow.verifySetup({ interactive: true });
           break;
         case 'CONFIRM_PLATFORM':
           result = await workflow.confirmPlatformGate();
@@ -126,11 +126,11 @@ export function createSidePanelController({
 
   async function initialize() {
     try {
-      const result = await workflow.recover();
+      const result = await workflow.inspect();
       currentState = typeof result?.state === 'string'
         ? result.state
         : learnerStateFromResult('RETRY', result);
-      recoverable = false;
+      recoverable = result?.recoverable === true;
       diagnostic = typeof result?.reason === 'string' ? result.reason : '';
       render();
       return result;
@@ -188,6 +188,18 @@ export async function bootstrapSidePanel({
         workspace: activeWorkspace
       })
     : {
+        async verifySetup() {
+          return {
+            state: 'SETUP_REQUIRED',
+            reason: 'Complete workspace setup before starting a lesson.'
+          };
+        },
+        async inspect() {
+          return {
+            state: 'SETUP_REQUIRED',
+            reason: 'Complete workspace setup before starting a lesson.'
+          };
+        },
         async recover() {
           return {
             state: 'SETUP_REQUIRED',

@@ -518,6 +518,8 @@ Text trong learning-data được xử lý như data và không được overrid
 
 START tự động chọn giữa recovery, resume và new session.
 
+Verify setup và việc khởi tạo Side Panel là các observational boundary: chúng có thể validate configuration và đọc durable state, nhưng không được mở ChatGPT, gửi control message, start Voice hoặc thực thi recovery. Recovery có side effect trên ChatGPT chỉ được chạy sau thao tác START hoặc Retry rõ ràng của learner.
+
 Thứ tự ưu tiên:
 
 1. incomplete recoverable pipeline;
