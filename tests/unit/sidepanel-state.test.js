@@ -2,7 +2,10 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getSidePanelView } from '../../sidepanel/view-model.js';
-import { createSidePanelController } from '../../sidepanel/sidepanel.js';
+import {
+  createSidePanelController,
+  bootstrapSidePanel
+} from '../../sidepanel/sidepanel.js';
 
 test('maps approved states to legal learner actions', () => {
   assert.deepEqual(getSidePanelView('SETUP_REQUIRED', false).actions, ['SETUP']);
@@ -45,6 +48,7 @@ function makeFakeDocument() {
       this.hidden = true;
       this.disabled = true;
       this.textContent = '';
+      this.value = '';
       this.handlers = new Map();
     }
     addEventListener(type, handler) {
@@ -57,6 +61,8 @@ function makeFakeDocument() {
 
   const ids = [
     'status',
+    'project-url-input',
+    'save-project-action',
     'setup-action',
     'confirm-platform-action',
     'start-action',
@@ -235,4 +241,104 @@ test('setup result reason is rendered instead of a generic dead-end message', as
   assert.equal(fakeDocument.documentElement.dataset.enpalState, 'SETUP_REQUIRED');
   assert.match(fakeDocument.elements.status.textContent, /Google authorization unavailable/);
   assert.equal(fakeDocument.elements['setup-action'].hidden, false);
+});
+
+
+test('Project URL field is prefilled, saves to persistent settings, and reloads EnPal', async () => {
+  const calls = [];
+  const workflow = {
+    async recover() {
+      return { state: 'SETUP_REQUIRED', reason: 'Project URL is required' };
+    },
+    async start() {},
+    async pause() {},
+    async end() {}
+  };
+  const projectSettings = {
+    async save(value) {
+      calls.push(['save', value]);
+      return 'https://chatgpt.com/g/g-p-new-project';
+    }
+  };
+  const fakeDocument = makeFakeDocument();
+  let reloadCount = 0;
+
+  const controller = createSidePanelController({
+    workflow,
+    documentRef: fakeDocument,
+    projectSettings,
+    initialProjectUrl: 'https://chatgpt.com/g/g-p-old-project',
+    reload: async () => {
+      reloadCount += 1;
+    }
+  });
+
+  await controller.initialize();
+
+  assert.equal(
+    fakeDocument.elements['project-url-input'].value,
+    'https://chatgpt.com/g/g-p-old-project'
+  );
+
+  fakeDocument.elements['project-url-input'].value =
+    'https://chatgpt.com/g/g-p-new-project/';
+  await fakeDocument.elements['save-project-action'].click();
+
+  assert.deepEqual(calls, [
+    ['save', 'https://chatgpt.com/g/g-p-new-project/']
+  ]);
+  assert.equal(
+    fakeDocument.elements['project-url-input'].value,
+    'https://chatgpt.com/g/g-p-new-project'
+  );
+  assert.equal(reloadCount, 1);
+});
+
+test('bootstrap reads saved Project URL before creating the runtime workflow', async () => {
+  const savedProjectUrl = 'https://chatgpt.com/g/g-p-saved-project';
+  const chromeApi = {
+    storage: {
+      local: {
+        async get(key) {
+          return { [key]: savedProjectUrl };
+        },
+        async set() {}
+      }
+    }
+  };
+  const fakeDocument = makeFakeDocument();
+  let receivedConfig = null;
+
+  await bootstrapSidePanel({
+    chromeApi,
+    documentRef: fakeDocument,
+    workflowFactory({ config }) {
+      receivedConfig = config;
+      return {
+        async recover() {
+          return { state: 'SETUP_REQUIRED' };
+        },
+        async start() {},
+        async pause() {},
+        async end() {}
+      };
+    },
+    reload: async () => {}
+  });
+
+  assert.equal(receivedConfig.projectUrl, savedProjectUrl);
+  assert.equal(
+    fakeDocument.elements['project-url-input'].value,
+    savedProjectUrl
+  );
+});
+
+test('real Side Panel HTML contains a Project URL field and save control', () => {
+  const html = readFileSync(
+    new URL('../../sidepanel/index.html', import.meta.url),
+    'utf8'
+  );
+  assert.match(html, /id="project-url-input"/);
+  assert.match(html, /id="save-project-action"/);
+  assert.match(html, /ChatGPT Project/);
 });

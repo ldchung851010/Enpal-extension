@@ -6,9 +6,14 @@ import {
   createRuntimeWorkflow
 } from '../../sidepanel/runtime.js';
 
-test('runtime composition is pinned to the approved exact-source registry', () => {
+const TEST_PROJECT_URL = 'https://chatgpt.com/g/g-p-test-project';
+
+function configWithProject(projectUrl = TEST_PROJECT_URL) {
+  return { ...RUNTIME_CONFIG, projectUrl };
+}
+
+test('runtime composition keeps canonical data sources pinned but Project URL user-configurable', () => {
   assert.deepEqual(RUNTIME_CONFIG, {
-    projectUrl: 'https://chatgpt.com/g/g-p-6aa9f3ea98a481918727756027f94208-test',
     curriculumSpreadsheetId: '19Q6x9dOJVY-yRxuInThBj1gODQWAmyV1-EbeOh-2JLU',
     databaseSpreadsheetId: '13zDzNQSgxicIUBm8oE0CVAXzheTJ45KeeRrsaT3pJv4',
     sessionBriefSpreadsheetId: '1MsD-v6olhkecgBxFzWZg61f1WPo42u7hFhNQRgYk-QU',
@@ -73,7 +78,11 @@ test('real side-panel runtime requests explicit Project verification while platf
     };
   };
 
-  const workflow = createRuntimeWorkflow({ chromeApi, fetchImpl });
+  const workflow = createRuntimeWorkflow({
+    chromeApi,
+    fetchImpl,
+    config: configWithProject()
+  });
   const result = await workflow.recover({ interactiveSetup: true });
 
   assert.equal(result.state, 'PLATFORM_VERIFICATION_REQUIRED');
@@ -150,7 +159,11 @@ test('runtime persists manual live Project confirmation only when explicitly con
     };
   };
 
-  const workflow = createRuntimeWorkflow({ chromeApi, fetchImpl });
+  const workflow = createRuntimeWorkflow({
+    chromeApi,
+    fetchImpl,
+    config: configWithProject()
+  });
 
   const blocked = await workflow.recover({ interactiveSetup: true });
   assert.equal(blocked.state, 'PLATFORM_VERIFICATION_REQUIRED');
@@ -232,15 +245,18 @@ test('Project verification marker is invalidated when canonical runtime config c
     };
   };
 
-  const original = createRuntimeWorkflow({ chromeApi, fetchImpl });
+  const original = createRuntimeWorkflow({
+    chromeApi,
+    fetchImpl,
+    config: configWithProject()
+  });
   await original.recover({ interactiveSetup: true });
   const ready = await original.confirmPlatformGate();
   assert.equal(ready.state, 'READY');
 
-  const changedConfig = {
-    ...RUNTIME_CONFIG,
-    projectUrl: 'https://chatgpt.com/g/g-p-different-project'
-  };
+  const changedConfig = configWithProject(
+    'https://chatgpt.com/g/g-p-different-project'
+  );
   const changed = createRuntimeWorkflow({
     chromeApi,
     fetchImpl,
