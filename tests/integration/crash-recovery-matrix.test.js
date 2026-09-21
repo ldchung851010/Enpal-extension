@@ -306,7 +306,7 @@ for (const entry of cases) {
       endVerifyAttempts: 2,
       endPollMs: 0,
       sleep: async () => {},
-      briefPromotionRange: { rowCount: 12, columnCount: 2 }
+      briefPromotionRange: { rowCount: 14, columnCount: 2 }
     });
 
     const result = await workflow.recover();
