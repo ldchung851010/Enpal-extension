@@ -3,6 +3,7 @@ import { createRuntimeWorkflow } from './runtime.js';
 
 const ACTION_BUTTONS = Object.freeze({
   SETUP: 'setup-action',
+  CONFIRM_PLATFORM: 'confirm-platform-action',
   START: 'start-action',
   PAUSE: 'pause-action',
   END: 'end-action',
@@ -64,6 +65,9 @@ export function createSidePanelController({ workflow, documentRef = document }) 
       switch (action) {
         case 'SETUP':
           result = await workflow.recover({ interactiveSetup: true });
+          break;
+        case 'CONFIRM_PLATFORM':
+          result = await workflow.confirmPlatformGate();
           break;
         case 'START':
           result = await workflow.start();

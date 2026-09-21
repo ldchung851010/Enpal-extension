@@ -977,6 +977,18 @@ export function createWorkflow(deps) {
 
     async recover(options) {
       return recoverCurrent(options);
+    },
+
+    async confirmPlatformGate() {
+      if (typeof setupGate?.confirmPlatformGate !== 'function') {
+        throw new EnpalError(
+          ERROR_CODES.SETUP_REQUIRED,
+          'Platform gate confirmation is unavailable',
+          true
+        );
+      }
+      await setupGate.confirmPlatformGate();
+      return recoverCurrent({ interactiveSetup: true });
     }
   };
 }

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getSidePanelView } from '../../sidepanel/view-model.js';
@@ -5,6 +6,10 @@ import { createSidePanelController } from '../../sidepanel/sidepanel.js';
 
 test('maps approved states to legal learner actions', () => {
   assert.deepEqual(getSidePanelView('SETUP_REQUIRED', false).actions, ['SETUP']);
+  assert.deepEqual(
+    getSidePanelView('PLATFORM_VERIFICATION_REQUIRED', false).actions,
+    ['CONFIRM_PLATFORM']
+  );
   assert.deepEqual(getSidePanelView('READY', false).actions, ['START']);
   assert.deepEqual(getSidePanelView('LEARNING', false).actions, ['PAUSE', 'END']);
   assert.deepEqual(getSidePanelView('PAUSED', false).actions, ['START']);
@@ -16,6 +21,7 @@ test('maps approved states to legal learner actions', () => {
 test('learner-facing copy never exposes internal END pipeline labels', () => {
   for (const state of [
     'SETUP_REQUIRED',
+    'PLATFORM_VERIFICATION_REQUIRED',
     'READY',
     'LEARNING',
     'PAUSED',
@@ -52,6 +58,7 @@ function makeFakeDocument() {
   const ids = [
     'status',
     'setup-action',
+    'confirm-platform-action',
     'start-action',
     'pause-action',
     'end-action',
@@ -139,4 +146,46 @@ test('Side Panel initializes from durable workflow recovery when reopened', asyn
   assert.equal(fakeDocument.elements['pause-action'].hidden, false);
   assert.equal(fakeDocument.elements['end-action'].hidden, false);
   assert.equal(fakeDocument.elements['start-action'].hidden, true);
+});
+
+
+test('platform verification state exposes one explicit confirmation action', async () => {
+  const calls = [];
+  const workflow = {
+    async recover(options) {
+      calls.push(['recover', options]);
+      return { state: 'PLATFORM_VERIFICATION_REQUIRED' };
+    },
+    async confirmPlatformGate() {
+      calls.push(['confirmPlatformGate']);
+      return { state: 'READY', action: 'READY' };
+    },
+    async start() {},
+    async pause() {},
+    async end() {}
+  };
+  const fakeDocument = makeFakeDocument();
+  const controller = createSidePanelController({ workflow, documentRef: fakeDocument });
+
+  await controller.invoke('SETUP');
+  assert.equal(fakeDocument.elements['confirm-platform-action'].hidden, false);
+  assert.equal(fakeDocument.elements['setup-action'].hidden, true);
+
+  await fakeDocument.elements['confirm-platform-action'].click();
+
+  assert.deepEqual(calls, [
+    ['recover', { interactiveSetup: true }],
+    ['confirmPlatformGate']
+  ]);
+  assert.equal(fakeDocument.elements['start-action'].hidden, false);
+  assert.equal(fakeDocument.documentElement.dataset.enpalState, 'READY');
+});
+
+test('real Side Panel HTML contains the Project access confirmation button', () => {
+  const html = readFileSync(
+    new URL('../../sidepanel/index.html', import.meta.url),
+    'utf8'
+  );
+  assert.match(html, /id="confirm-platform-action"/);
+  assert.match(html, /Confirm Project access verified/);
 });

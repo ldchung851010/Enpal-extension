@@ -48,6 +48,9 @@ function makeSetup(overrides = {}) {
       calls.push(['hasPlatformGateMarker']);
       return true;
     }),
+    markPlatformGateVerified: overrides.markPlatformGateVerified ?? (async () => {
+      calls.push(['markPlatformGateVerified']);
+    }),
     readActiveBrief: overrides.readActiveBrief ?? (async () => {
       calls.push(['readActiveBrief']);
       return validBrief();
@@ -88,12 +91,6 @@ test('missing any setup requirement keeps app in SETUP_REQUIRED', async () => {
       name: 'Sheets read/write',
       overrides: {
         verifySheetsAccess: async () => ({ read: true, write: false })
-      }
-    },
-    {
-      name: 'platform gate marker',
-      overrides: {
-        hasPlatformGateMarker: async () => false
       }
     },
     {
@@ -149,5 +146,53 @@ test('workflow.recover exposes setup state without letting the Side Panel reach 
   });
 
   const blocked = await blockedWorkflow.recover({ interactiveSetup: true });
-  assert.equal(blocked.state, 'SETUP_REQUIRED');
+  assert.equal(blocked.state, 'PLATFORM_VERIFICATION_REQUIRED');
+});
+
+
+test('missing platform gate requests explicit live confirmation instead of looking like a dead setup button', async () => {
+  const { gate } = makeSetup({
+    hasPlatformGateMarker: async () => false
+  });
+
+  const result = await gate.verify({ interactive: true });
+
+  assert.equal(result.state, 'PLATFORM_VERIFICATION_REQUIRED');
+  assert.match(result.reason, /project access/i);
+});
+
+test('workflow confirms live Project access through setup gate, then re-runs setup to READY', async () => {
+  let marker = false;
+  const { gate } = makeSetup({
+    hasPlatformGateMarker: async () => marker,
+    markPlatformGateVerified: async () => {
+      marker = true;
+    }
+  });
+
+  const workflow = createWorkflow({
+    setupGate: gate,
+    sessions: {
+      async listActive() {
+        return [];
+      }
+    },
+    briefs: {
+      async readActive() {
+        return validBrief();
+      }
+    },
+    journal: {
+      async read() {
+        return {};
+      }
+    }
+  });
+
+  const blocked = await workflow.recover({ interactiveSetup: true });
+  assert.equal(blocked.state, 'PLATFORM_VERIFICATION_REQUIRED');
+
+  const ready = await workflow.confirmPlatformGate();
+  assert.equal(ready.state, 'READY');
+  assert.equal(marker, true);
 });

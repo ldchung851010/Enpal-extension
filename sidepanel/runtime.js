@@ -38,10 +38,37 @@ function createDegradedSupervisor() {
   };
 }
 
-async function readPlatformGateMarker(chromeApi) {
+function platformGateFingerprint(config) {
+  return JSON.stringify({
+    projectUrl: config.projectUrl,
+    curriculumSpreadsheetId: config.curriculumSpreadsheetId,
+    databaseSpreadsheetId: config.databaseSpreadsheetId,
+    sessionBriefSpreadsheetId: config.sessionBriefSpreadsheetId,
+    reviewLedgerSpreadsheetId: config.reviewLedgerSpreadsheetId,
+    teacherRoleUrl: config.teacherRoleUrl,
+    speakingMethodUrl: config.speakingMethodUrl,
+    listeningMethodUrl: config.listeningMethodUrl
+  });
+}
+
+async function readPlatformGateMarker(chromeApi, config) {
   const result = await chromeApi.storage.local.get(PLATFORM_GATE_KEY);
   const marker = result?.[PLATFORM_GATE_KEY];
-  return marker === 'PASS' || marker?.status === 'PASS';
+  return (
+    marker?.status === 'PASS' &&
+    marker?.fingerprint === platformGateFingerprint(config)
+  );
+}
+
+async function writePlatformGateMarker(chromeApi, config) {
+  await chromeApi.storage.local.set({
+    [PLATFORM_GATE_KEY]: {
+      status: 'PASS',
+      source: 'manual-live-confirmation',
+      verifiedAt: new Date().toISOString(),
+      fingerprint: platformGateFingerprint(config)
+    }
+  });
 }
 
 async function verifyRequiredSheets({ config, token, fetchImpl }) {
@@ -128,7 +155,8 @@ export function createRuntimeWorkflow({
         token,
         fetchImpl
       }),
-    hasPlatformGateMarker: () => readPlatformGateMarker(chromeApi),
+    hasPlatformGateMarker: () => readPlatformGateMarker(chromeApi, config),
+    markPlatformGateVerified: () => writePlatformGateMarker(chromeApi, config),
     readActiveBrief: () => briefs.readActive()
   });
 

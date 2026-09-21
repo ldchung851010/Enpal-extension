@@ -21,9 +21,18 @@ export function createSetupGate({
   authorizeGoogle,
   verifySheetsAccess,
   hasPlatformGateMarker,
+  markPlatformGateVerified,
   readActiveBrief
 }) {
   return {
+    async confirmPlatformGate() {
+      if (typeof markPlatformGateVerified !== 'function') {
+        throw new Error('Platform gate confirmation is unavailable');
+      }
+      await markPlatformGateVerified();
+      return { confirmed: true };
+    },
+
     async verify({ interactive = false } = {}) {
       try {
         const config = loadRuntimeConfig(rawConfig);
@@ -39,7 +48,10 @@ export function createSetupGate({
         }
 
         if (await hasPlatformGateMarker() !== true) {
-          throw new Error('Required platform gate marker is missing');
+          return {
+            state: 'PLATFORM_VERIFICATION_REQUIRED',
+            reason: 'Project access live verification is required'
+          };
         }
 
         const brief = await readActiveBrief();
