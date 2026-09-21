@@ -350,8 +350,14 @@ Brief dùng canonical logical lesson model và về mặt khái niệm gồm:
 - Focus;
 - Situation/context;
 - Target Performance;
+- Completion Criteria;
+- Mask Policy;
 - lesson-flow information khi cần;
 - Review Focus riêng với stable Review Item ID.
+
+Primary Skill, Communicative Goal, Focus, Completion Criteria và Mask Policy là các field core curriculum cố định. Review Planner chỉ được thêm Review Focus và điều chỉnh tối thiểu Situation/Target Performance khi cần tạo cơ hội review tự nhiên.
+
+Focus và Completion Criteria được lưu dưới dạng JSON array. Review Focus luôn là JSON array; array rỗng `[]` nghĩa là không có review item được chọn.
 
 Review layer phải luôn phân biệt rõ với fixed core learning.
 
@@ -371,7 +377,7 @@ _STAGING
 Trong END:
 
 1. ChatGPT ghi toàn bộ brief kế tiếp vào `_STAGING`.
-2. Extension verify required structure + curriculum identity + ready marker.
+2. Extension verify toàn bộ required key, curriculum identity, ready marker, các field JSON array, enum Primary Skill và enum Mask Policy.
 3. Extension promote `_STAGING` sang `ACTIVE` bằng một atomic Google Sheets batch update.
 4. Cùng promotion đó clear/reset staging.
 5. Nếu promotion fail, ACTIVE brief trước đó vẫn là authority.
@@ -668,7 +674,7 @@ Review Planner chỉ nhận:
 
 Completed-session evidence đi tới Planner một cách gián tiếp qua UPDATE.
 
-Planner có thể thêm Review Focus nhưng không được replace/change core curriculum lesson.
+Planner có thể thêm Review Focus và điều chỉnh tối thiểu Situation/Target Performance, nhưng không được thay đổi Primary Skill, Communicative Goal, Focus, Completion Criteria hoặc Mask Policy.
 
 ---
 
@@ -676,7 +682,7 @@ Planner có thể thêm Review Focus nhưng không được replace/change core 
 
 ChatGPT ghi toàn bộ brief kế tiếp vào `_STAGING`.
 
-Extension chỉ validate machine-checkable structure và identity; không parse assistant prose hay tự thực hiện semantic lesson design.
+Extension validate toàn bộ required key, machine-checkable field type/enum, ready marker và identity; không parse assistant prose hay tự thực hiện semantic lesson design.
 
 Sau khi verify, Extension atomically promote staging thành ACTIVE.
 
