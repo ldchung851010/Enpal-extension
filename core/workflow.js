@@ -751,6 +751,15 @@ export function createWorkflow(deps) {
     }
 
     await attemptRenameOnce(tabId, current, knownJournal);
+
+    if (typeof mask?.disarm === 'function') {
+      try {
+        await mask.disarm(tabId);
+      } catch {
+        // Mask removal after a completed lesson is best-effort UI cleanup.
+      }
+    }
+
     await journal.write({ appState: 'READY', status: 'READY' });
 
     return {
