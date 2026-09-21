@@ -1,0 +1,26 @@
+name: temp rebuild task1 green
+
+on:
+  push:
+    branches:
+      - temp/rebuild-task1-green-ci
+
+permissions:
+  contents: read
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 6ac5a4d705c26b75f41d5f5d5ebb3c13644a4f3d
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Exact SHA
+        run: test "$(git rev-parse HEAD)" = "6ac5a4d705c26b75f41d5f5d5ebb3c13644a4f3d"
+      - name: Focused Task 1 tests
+        run: node --test tests/unit/state.test.js tests/unit/config.test.js tests/unit/errors.test.js
+      - name: Full suite
+        run: npm test
