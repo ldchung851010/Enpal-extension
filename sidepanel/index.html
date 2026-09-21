@@ -8,8 +8,65 @@
 </head>
 <body>
   <main class="panel" aria-labelledby="app-title">
-    <h1 id="app-title">EnPal</h1>
-    <p id="status">Extension shell ready</p>
+    <div class="brand">
+      <p class="eyebrow">Learning companion</p>
+      <h1 id="app-title">EnPal</h1>
+    </div>
+
+    <section class="workspace-card" aria-labelledby="workspace-heading">
+      <div class="workspace-heading-row">
+        <div>
+          <p class="status-label" id="workspace-heading">Workspace</p>
+          <select id="workspace-select" aria-label="Active workspace"></select>
+        </div>
+        <div class="workspace-buttons">
+          <button id="add-workspace-action" type="button">Add</button>
+          <button id="edit-workspace-action" type="button">Edit</button>
+          <button id="delete-workspace-action" type="button">Delete</button>
+        </div>
+      </div>
+
+      <form id="workspace-form" class="workspace-form" hidden>
+        <label>Name<input id="workspace-name" required></label>
+        <label>ChatGPT Project URL<input id="workspace-project-url" type="url" required></label>
+
+        <details>
+          <summary>Workspace data sources</summary>
+          <p class="eyebrow">Optional when first saving. Complete these before START.</p>
+          <div class="workspace-fields">
+            <label>Curriculum Sheet ID<input id="workspace-curriculum-sheet"></label>
+            <label>EnPal Database Sheet ID<input id="workspace-database-sheet"></label>
+            <label>Session Brief Sheet ID<input id="workspace-brief-sheet"></label>
+            <label>Session Brief ACTIVE sheetId<input id="workspace-brief-active-sheet-id" type="number" min="0"></label>
+            <label>Session Brief _STAGING sheetId<input id="workspace-brief-staging-sheet-id" type="number" min="0"></label>
+            <label>Review Ledger Sheet ID<input id="workspace-review-sheet"></label>
+            <label>Teacher Role URL<input id="workspace-teacher-role-url" type="url"></label>
+            <label>Speaking Method URL<input id="workspace-speaking-method-url" type="url"></label>
+            <label>Listening Method URL<input id="workspace-listening-method-url" type="url"></label>
+          </div>
+        </details>
+
+        <p id="workspace-error" class="workspace-error" hidden></p>
+        <div class="workspace-form-actions">
+          <button id="save-workspace-action" type="submit">Save workspace</button>
+          <button id="cancel-workspace-action" type="button">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="status-card" aria-live="polite">
+      <p class="status-label">Status</p>
+      <p id="status">Verify setup before starting a lesson.</p>
+    </section>
+
+    <div class="actions" aria-label="Lesson actions">
+      <button id="setup-action" type="button" hidden>Verify setup</button>
+      <button id="confirm-platform-action" type="button" hidden>Confirm Project access verified</button>
+      <button id="start-action" type="button" disabled>START</button>
+      <button id="pause-action" type="button" disabled>PAUSE</button>
+      <button id="end-action" type="button" disabled>END</button>
+      <button id="retry-action" type="button" hidden>Retry</button>
+    </div>
   </main>
   <script type="module" src="sidepanel.js"></script>
 </body>
