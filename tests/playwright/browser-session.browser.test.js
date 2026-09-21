@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium } from 'playwright';
@@ -42,8 +43,13 @@ test('attachToChrome opens an isolated tab and disconnects without killing exter
     args.unshift('--no-sandbox');
   }
 
+  const bundled = chromium.executablePath();
+  const executable = existsSync(bundled)
+    ? bundled
+    : process.env.ENPAL_TEST_CHROMIUM || '/usr/bin/chromium';
+
   const child = spawn(
-    chromium.executablePath(),
+    executable,
     args,
     { stdio: 'ignore' }
   );
