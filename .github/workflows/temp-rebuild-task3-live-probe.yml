@@ -1,0 +1,31 @@
+name: temp rebuild task3 live probe
+
+on:
+  push:
+    branches:
+      - temp/rebuild-task3-live-probe
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 24308c1e802bae1747d128eca546c886f2e5243c
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Probe logic test
+        run: node --test tests/unit/task3-live-probe.test.js
+      - name: Full suite
+        run: npm test
+      - name: Package live probe
+        run: zip -r enpal-task3-live-probe-24308c1e802bae1747d128eca546c886f2e5243c.zip . -x ".git/*"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enpal-task3-live-probe-24308c1e802bae1747d128eca546c886f2e5243c
+          path: enpal-task3-live-probe-24308c1e802bae1747d128eca546c886f2e5243c.zip
+          if-no-files-found: error
