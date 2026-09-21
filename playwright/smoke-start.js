@@ -1,49 +1,36 @@
-import {
-  attachToChrome,
-  launchEnpalBrowser
-} from './browser-session.js';
+import { attachToChrome } from './browser-session.js';
 import { createChatGptPage } from './chatgpt-page.js';
 
 function required(name, value) {
   const normalized = String(value ?? '').trim();
   if (!normalized) {
-    throw new Error(
-      `Missing ${name}. Example: ${name}=... npm run pw:smoke:start -- "EnPal Playwright smoke. Reply only OK."`
-    );
+    throw new Error('Missing required environment value: ' + name);
   }
   return normalized;
 }
 
-const projectUrl = required('ENPAL_PROJECT_URL', process.env.ENPAL_PROJECT_URL);
+const endpoint = required(
+  'ENPAL_CDP_ENDPOINT',
+  process.env.ENPAL_CDP_ENDPOINT
+);
+const projectUrl = required(
+  'ENPAL_PROJECT_URL',
+  process.env.ENPAL_PROJECT_URL
+);
 const message = required(
   'smoke message',
   process.argv.slice(2).join(' ') || process.env.ENPAL_SMOKE_MESSAGE
 );
 
-const attachEndpoint = String(process.env.ENPAL_CDP_ENDPOINT ?? '').trim();
-const profileDir = process.env.ENPAL_BROWSER_PROFILE || '.enpal/browser-profile';
-const channel = process.env.ENPAL_BROWSER_CHANNEL || '';
-
-let browser;
+let session;
 
 try {
-  browser = attachEndpoint
-    ? await attachToChrome({ endpoint: attachEndpoint })
-    : await launchEnpalBrowser({
-        profileDir,
-        headless: false,
-        channel
-      });
+  session = await attachToChrome({ endpoint });
 
-  const { page } = browser;
+  const { page } = session;
   const chatgpt = createChatGptPage(page);
 
-  if (browser.mode === 'attached') {
-    console.log('[1/5] Attached to existing Chrome:', browser.endpoint);
-  } else {
-    console.log('[1/5] Browser profile:', browser.userDataDir);
-  }
-
+  console.log('[1/5] Attached to existing Chrome:', endpoint);
   console.log('[2/5] Opening ChatGPT Project:', projectUrl);
 
   await page.goto(projectUrl, {
@@ -54,23 +41,28 @@ try {
   console.log('[3/5] Waiting for authenticated Project new-chat surface...');
   await chatgpt.waitForProjectReady(projectUrl);
 
-  console.log('[4/5] Sending smoke message through visible ChatGPT controls...');
+  console.log('[4/5] Sending smoke message through ChatGPT Send control...');
   await chatgpt.sendMessage(message, projectUrl);
 
   const conversationUrl = await chatgpt.waitForConversationUrl(projectUrl);
+
   console.log('[5/5] PASS: authoritative conversation created inside Project');
   console.log('Conversation URL:', conversationUrl);
 
   if (process.env.ENPAL_KEEP_OPEN === '1') {
-    console.log('ENPAL_KEEP_OPEN=1: Chrome remains available. Press Ctrl+C to stop this script.');
+    console.log(
+      'ENPAL_KEEP_OPEN=1: automation tab remains open. Press Ctrl+C to stop.'
+    );
     await new Promise(() => {});
   }
-
-  await browser.close();
 } catch (error) {
-  console.error('FAIL:', error?.stack || error?.message || String(error));
-  if (browser?.close) {
-    await browser.close().catch(() => {});
-  }
+  console.error(
+    'FAIL:',
+    error?.stack || error?.message || String(error)
+  );
   process.exitCode = 1;
+} finally {
+  if (process.env.ENPAL_KEEP_OPEN !== '1') {
+    await session?.close().catch(() => {});
+  }
 }
