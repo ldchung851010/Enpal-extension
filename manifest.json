@@ -30,5 +30,16 @@
   },
   "action": {
     "default_title": "EnPal"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "content/chatgpt-runtime.js"
+      ],
+      "run_at": "document_start"
+    }
+  ]
 }
