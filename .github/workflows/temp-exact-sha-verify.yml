@@ -1,0 +1,34 @@
+name: temp exact-sha verification
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact target SHA
+        uses: actions/checkout@v4
+        with:
+          ref: 889eeec78856a224c9023759b0541d1225fc685c
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Show exact SHA
+        run: git rev-parse HEAD
+      - name: Run full test suite
+        run: npm test
+      - name: Package exact source
+        run: |
+          zip -r enpal-889eeec78856a224c9023759b0541d1225fc685c.zip . -x ".git/*"
+      - name: Upload exact source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: enpal-889eeec78856a224c9023759b0541d1225fc685c
+          path: enpal-889eeec78856a224c9023759b0541d1225fc685c.zip
+          if-no-files-found: error
