@@ -350,8 +350,14 @@ The Brief uses the canonical logical lesson model and conceptually includes:
 - Focus;
 - Situation/context;
 - Target Performance;
+- Completion Criteria;
+- Mask Policy;
 - lesson-flow information where required;
 - separate Review Focus with stable Review Item IDs.
+
+Primary Skill, Communicative Goal, Focus, Completion Criteria, and Mask Policy are fixed core curriculum fields. Review Planner may only add Review Focus and minimally adjust Situation and Target Performance when needed for a natural review opportunity.
+
+Focus and Completion Criteria are stored as JSON arrays. Review Focus is always a JSON array; an empty array `[]` means no selected review item.
 
 The Review layer must remain distinguishable from fixed core learning.
 
@@ -371,7 +377,7 @@ _STAGING
 During END:
 
 1. ChatGPT writes the complete next brief to `_STAGING`.
-2. Extension verifies required structure + curriculum identity + ready marker.
+2. Extension verifies every required key, curriculum identity, ready marker, JSON-array fields, Primary Skill enum, and Mask Policy enum.
 3. Extension promotes `_STAGING` to `ACTIVE` using one atomic Google Sheets batch update.
 4. The same promotion clears/resets staging.
 5. If promotion fails, the previous ACTIVE brief remains authoritative.
@@ -668,7 +674,7 @@ Review Planner takes only:
 
 Completed-session evidence reaches Planner indirectly through UPDATE.
 
-Planner may add Review Focus but may not replace/change the core curriculum lesson.
+Planner may add Review Focus and minimally adjust Situation/Target Performance, but it may not change Primary Skill, Communicative Goal, Focus, Completion Criteria, or Mask Policy.
 
 ---
 
@@ -676,7 +682,7 @@ Planner may add Review Focus but may not replace/change the core curriculum less
 
 ChatGPT writes the next complete brief to `_STAGING`.
 
-Extension validates machine-checkable structure and identity only; it does not parse assistant prose or perform semantic lesson design.
+Extension validates all required keys, machine-checkable field types/enums, ready marker, and identity; it does not parse assistant prose or perform semantic lesson design.
 
 After verification, Extension atomically promotes staging to ACTIVE.
 
