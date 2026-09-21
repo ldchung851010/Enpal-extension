@@ -1,15 +1,15 @@
 const COMPOSER_SELECTORS = Object.freeze([
   '#prompt-textarea',
+  '[contenteditable="true"][role="textbox"]',
   '[contenteditable="true"][data-lexical-editor="true"]',
   'textarea[placeholder*="Message"]'
 ]);
 
 const SEND_SELECTORS = Object.freeze([
+  '#composer-submit-button',
   'button[data-testid="send-button"]',
-  'button[aria-label="Send prompt"]',
-  'button[aria-label="Send message"]',
-  'button[aria-label="Send"]',
-  'button[aria-label^="Send"]'
+  'button.composer-submit-btn',
+  'button[type="submit"][aria-label*="Send" i]'
 ]);
 
 const GENERATING_SELECTORS = Object.freeze([
@@ -20,12 +20,15 @@ const GENERATING_SELECTORS = Object.freeze([
 
 const USER_TURN_SELECTORS = Object.freeze([
   '[data-message-author-role="user"]',
-  '[data-testid^="conversation-turn-"] [data-message-author-role="user"]',
-  'article[data-testid^="conversation-turn-"][data-message-author-role="user"]'
+  '[data-testid^="conversation-turn-"] [data-message-author-role="user"]'
 ]);
 
-function sleep(ms) {
+function defaultSleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function cleanText(value) {
+  return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
 export function normalizeUrl(value) {
@@ -97,7 +100,7 @@ async function firstVisible(page, selectors) {
       try {
         if (await locator.isVisible()) return locator;
       } catch {
-        // DOM changed while checking; try the next semantic candidate.
+        // DOM changed while checking. Continue with the next semantic candidate.
       }
     }
   }
@@ -106,14 +109,16 @@ async function firstVisible(page, selectors) {
 
 async function waitForVisible(page, selectors, {
   timeoutMs = 20_000,
-  pollMs = 100
+  pollMs = 100,
+  sleep = defaultSleep
 } = {}) {
   const deadline = Date.now() + Math.max(0, timeoutMs);
   do {
     const locator = await firstVisible(page, selectors);
     if (locator) return locator;
+    if (Date.now() >= deadline) break;
     await sleep(pollMs);
-  } while (Date.now() <= deadline);
+  } while (true);
   return null;
 }
 
@@ -122,7 +127,7 @@ async function userTurns(page) {
   for (const selector of USER_TURN_SELECTORS) {
     const texts = await page.locator(selector).allInnerTexts().catch(() => []);
     for (const text of texts) {
-      const normalized = String(text ?? '').trim();
+      const normalized = cleanText(text);
       if (normalized && !seen.includes(normalized)) seen.push(normalized);
     }
   }
@@ -131,78 +136,143 @@ async function userTurns(page) {
 
 async function composerText(composer) {
   return composer.evaluate(element => {
-    if ('value' in element) return String(element.value ?? '').trim();
-    return String(element.innerText ?? element.textContent ?? '').trim();
+    if ('value' in element) return String(element.value ?? '');
+    return String(element.innerText ?? element.textContent ?? '');
   }).catch(() => '');
 }
 
-async function typeWithKeyboard(page, composer, message) {
-  // Do not use pointer click here. ChatGPT can place sticky/fade layers
-  // above the composer that intercept mouse events even though the editor
-  // itself is visible. DOM focus + keyboard input avoids that fragile layer.
-  await composer.focus();
-  await page.keyboard.press('Control+A').catch(() => {});
-  await page.keyboard.press('Backspace').catch(() => {});
+async function fillComposer(page, composer, message) {
+  await composer.fill(message);
+  let actual = await composerText(composer);
+  if (cleanText(actual) === cleanText(message)) return;
 
-  const lines = String(message).split('\n');
-  for (let index = 0; index < lines.length; index += 1) {
-    if (lines[index]) {
-      await page.keyboard.type(lines[index], { delay: 1 });
-    }
-    if (index < lines.length - 1) {
-      await page.keyboard.press('Shift+Enter');
-    }
+  // Fallback for editor variants where fill() does not update ProseMirror state.
+  await composer.focus();
+  await page.keyboard.press('ControlOrMeta+A');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.insertText(message);
+  actual = await composerText(composer);
+
+  if (cleanText(actual) !== cleanText(message)) {
+    throw new Error('ChatGPT composer did not retain the intended message');
   }
 }
 
 async function enabledSendControl(page) {
-  const send = await firstVisible(page, SEND_SELECTORS);
-  if (!send) return null;
+  for (const selector of SEND_SELECTORS) {
+    const matches = page.locator(selector);
+    const count = await matches.count().catch(() => 0);
 
-  const disabled = await send.evaluate(element =>
-    element.disabled === true ||
-    element.getAttribute('disabled') !== null ||
-    element.getAttribute('aria-disabled') === 'true'
-  ).catch(() => true);
-
-  return disabled ? null : send;
+    for (let index = 0; index < count; index += 1) {
+      const candidate = matches.nth(index);
+      try {
+        if (!(await candidate.isVisible())) continue;
+        const disabled = await candidate.evaluate(element =>
+          element.disabled === true ||
+          element.getAttribute('disabled') !== null ||
+          element.getAttribute('aria-disabled') === 'true'
+        );
+        if (!disabled) return candidate;
+      } catch {
+        // Candidate detached or changed. Keep looking.
+      }
+    }
+  }
+  return null;
 }
 
-async function waitForSubmissionEvidence(
+async function waitForEnabledSend(page, timeoutMs, sleep) {
+  const deadline = Date.now() + Math.max(0, timeoutMs);
+  do {
+    const send = await enabledSendControl(page);
+    if (send) return send;
+    if (Date.now() >= deadline) break;
+    await sleep(100);
+  } while (true);
+  return null;
+}
+
+async function conversationCandidates(page) {
+  const candidates = [page.url()];
+  try {
+    const canonical = await page.locator('link[rel="canonical"]').first().getAttribute('href');
+    if (canonical) candidates.push(canonical);
+  } catch {
+    // Canonical is optional.
+  }
+  return [...new Set(candidates.filter(Boolean))];
+}
+
+async function activateSend(page, send) {
+  await send.focus();
+  const focused = await send.evaluate(
+    element => document.activeElement === element
+  ).catch(() => false);
+
+  if (!focused) {
+    throw new Error('ChatGPT Send control could not receive keyboard focus');
+  }
+
+  // Trusted keyboard activation avoids pointer-overlay failures. Once this
+  // activation is sent we never retry blindly, because an ambiguous retry can
+  // create a duplicate user turn.
+  await page.keyboard.press('Enter');
+}
+
+async function waitForSubmissionEvidence({
   page,
   composer,
   baseline,
   message,
-  timeoutMs
-) {
+  projectUrl,
+  timeoutMs,
+  sleep
+}) {
   const deadline = Date.now() + timeoutMs;
-  const marker = message.slice(0, 80);
+  const marker = cleanText(message).slice(0, 80);
 
   do {
     const turns = await userTurns(page);
-    const userTurnConfirmed =
-      turns.length > baseline &&
-      turns.some(turn => String(turn).includes(marker));
+    const userTurnConfirmed = turns.length > baseline &&
+      turns.some(turn => cleanText(turn).includes(marker));
 
-    const currentUrl = page.url();
-    const conversationUrlConfirmed = isAnyConversationUrl(currentUrl);
-    const remainingComposerText = await composerText(composer);
+    const remainingComposerText = cleanText(await composerText(composer));
     const composerCleared = remainingComposerText === '';
+    const candidates = await conversationCandidates(page);
 
-    if (userTurnConfirmed || (conversationUrlConfirmed && composerCleared)) {
+    const boundConversation = candidates.find(url =>
+      isConversationInsideProject(url, projectUrl)
+    );
+
+    const wrongConversation = candidates.find(url =>
+      isAnyConversationUrl(url) && !isConversationInsideProject(url, projectUrl)
+    );
+
+    if (wrongConversation) {
+      throw new Error(
+        'ChatGPT created the conversation outside the configured Project'
+      );
+    }
+
+    if (userTurnConfirmed || (composerCleared && boundConversation)) {
       return {
         ok: true,
         sent: true,
         userTurns: turns.length,
-        evidence: userTurnConfirmed ? 'USER_TURN' : 'CONVERSATION_URL_AND_CLEARED_COMPOSER'
+        conversationUrl: boundConversation || null,
+        evidence: userTurnConfirmed
+          ? 'USER_TURN'
+          : 'PROJECT_CONVERSATION_AND_CLEARED_COMPOSER'
       };
     }
 
+    if (Date.now() >= deadline) break;
     await sleep(100);
-  } while (Date.now() <= deadline);
+  } while (true);
 
   const turns = await userTurns(page);
-  const remainingComposerText = await composerText(composer);
+  const remainingComposerText = cleanText(await composerText(composer));
+
   throw new Error(
     'ChatGPT did not confirm that the message was submitted. ' +
     'url=' + page.url() +
@@ -214,13 +284,15 @@ async function waitForSubmissionEvidence(
 export function createChatGptPage(page, {
   projectReadyTimeoutMs = 120_000,
   conversationTimeoutMs = 20_000,
-  submitTimeoutMs = 12_000
+  submitTimeoutMs = 15_000,
+  sleep = defaultSleep
 } = {}) {
   if (!page) throw new TypeError('Playwright Page is required');
 
   return {
     async waitForProjectReady(projectUrl) {
       const deadline = Date.now() + projectReadyTimeoutMs;
+
       do {
         const currentUrl = page.url();
 
@@ -237,72 +309,77 @@ export function createChatGptPage(page, {
           }
         }
 
+        if (Date.now() >= deadline) break;
         await sleep(200);
-      } while (Date.now() <= deadline);
+      } while (true);
 
-      throw new Error(
-        'ChatGPT Project did not become ready. If this is the first run, finish signing in in the opened browser and rerun.'
-      );
+      throw new Error('ChatGPT Project new-chat surface did not become ready');
     },
 
-    async sendMessage(text) {
+    async sendMessage(text, projectUrl) {
       const message = String(text ?? '').trim();
       if (!message) throw new TypeError('sendMessage requires non-empty text');
+      if (!projectUrl) throw new TypeError('sendMessage requires projectUrl');
 
       const composer = await waitForVisible(page, COMPOSER_SELECTORS, {
-        timeoutMs: submitTimeoutMs
+        timeoutMs: submitTimeoutMs,
+        sleep
       });
+
       if (!composer) throw new Error('ChatGPT composer is unavailable');
 
       const beforeTurns = await userTurns(page);
-      await typeWithKeyboard(page, composer, message);
+      await fillComposer(page, composer, message);
 
-      // Keyboard typing should make ChatGPT's semantic Send control enabled.
-      // Prefer the visible Send control, because some editor states treat
-      // Enter as a newline. If no enabled Send control is exposed, fall back
-      // to Enter on the focused composer.
-      const sendDeadline = Date.now() + Math.min(3_000, submitTimeoutMs);
-      let send = null;
-
-      do {
-        send = await enabledSendControl(page);
-        if (send) break;
-        await sleep(100);
-      } while (Date.now() <= sendDeadline);
-
-      if (send) {
-        try {
-          await send.click({ timeout: 2_000 });
-        } catch {
-          await send.click({ force: true });
-        }
-      } else {
-        await page.keyboard.press('Enter');
+      const send = await waitForEnabledSend(page, submitTimeoutMs, sleep);
+      if (!send) {
+        throw new Error(
+          'ChatGPT Send control did not become enabled after composer input'
+        );
       }
 
-      return waitForSubmissionEvidence(
+      await activateSend(page, send);
+
+      return waitForSubmissionEvidence({
         page,
         composer,
-        beforeTurns.length,
+        baseline: beforeTurns.length,
         message,
-        submitTimeoutMs
-      );
+        projectUrl,
+        timeoutMs: submitTimeoutMs,
+        sleep
+      });
     },
 
     async waitForConversationUrl(projectUrl) {
       const deadline = Date.now() + conversationTimeoutMs;
+
       do {
-        const currentUrl = page.url();
-        if (isConversationInsideProject(currentUrl, projectUrl)) return currentUrl;
-        if (isAnyConversationUrl(currentUrl)) {
+        const candidates = await conversationCandidates(page);
+        const bound = candidates.find(url =>
+          isConversationInsideProject(url, projectUrl)
+        );
+
+        if (bound) return bound;
+
+        const wrong = candidates.find(url =>
+          isAnyConversationUrl(url) &&
+          !isConversationInsideProject(url, projectUrl)
+        );
+
+        if (wrong) {
           throw new Error(
             'ChatGPT created the conversation outside the configured Project'
           );
         }
-        await sleep(100);
-      } while (Date.now() <= deadline);
 
-      throw new Error('ChatGPT did not create a conversation URL before timeout');
+        if (Date.now() >= deadline) break;
+        await sleep(100);
+      } while (true);
+
+      throw new Error(
+        'ChatGPT did not create a Project conversation URL before timeout'
+      );
     },
 
     async waitUntilIdle({
@@ -315,7 +392,9 @@ export function createChatGptPage(page, {
       let idleSince = null;
 
       while (Date.now() - startedAt <= timeoutMs) {
-        const generating = Boolean(await firstVisible(page, GENERATING_SELECTORS));
+        const generating = Boolean(
+          await firstVisible(page, GENERATING_SELECTORS)
+        );
         const elapsed = Date.now() - startedAt;
 
         if (generating) {
@@ -324,7 +403,11 @@ export function createChatGptPage(page, {
         } else if (sawGenerating || elapsed >= activityGraceMs) {
           if (idleSince === null) idleSince = Date.now();
           if (Date.now() - idleSince >= idleStabilityMs) {
-            return { ok: true, idle: true, activityObserved: sawGenerating };
+            return {
+              ok: true,
+              idle: true,
+              activityObserved: sawGenerating
+            };
           }
         }
 
