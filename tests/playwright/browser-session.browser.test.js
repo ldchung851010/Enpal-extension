@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
@@ -71,7 +72,13 @@ test('attachToChrome opens an isolated tab and disconnects without killing exter
       'disconnecting Playwright must not terminate externally owned Chrome'
     );
   } finally {
-    child.kill();
+    if (child.exitCode === null) {
+      child.kill();
+      await Promise.race([
+        once(child, 'exit'),
+        new Promise(resolve => setTimeout(resolve, 3_000))
+      ]);
+    }
     await rm(profileDir, { recursive: true, force: true });
   }
 });
