@@ -172,3 +172,24 @@ test('changing runtime identity invalidates an old platform marker by fingerprin
     'PLATFORM_VERIFICATION_REQUIRED'
   );
 });
+
+
+test('non-interactive inspect never performs a Sheets write probe after setup is verified', async () => {
+  const h = harness();
+  const A = workspace('A');
+  const flow = createRuntimeWorkflow({
+    chromeApi: h.chromeApi,
+    fetchImpl: h.fetchImpl,
+    workspace: A
+  });
+
+  await flow.recover({ interactiveSetup: true });
+  await flow.confirmPlatformGate();
+
+  h.calls.length = 0;
+  const result = await flow.inspect();
+
+  assert.equal(result.state, 'READY');
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, 0);
+  assert.equal(h.calls.filter(call => call.method === 'GET').length >= 4, true);
+});
