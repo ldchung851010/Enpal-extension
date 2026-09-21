@@ -5,6 +5,8 @@ import { createWorkflow } from '../../core/workflow.js';
 
 function validConfig() {
   return {
+    id: 'A',
+    name: 'Workspace A',
     projectUrl: 'https://chatgpt.com/g/g-p-enpal',
     curriculumSpreadsheetId: 'curriculum',
     databaseSpreadsheetId: 'database',
@@ -12,7 +14,9 @@ function validConfig() {
     reviewLedgerSpreadsheetId: 'review',
     teacherRoleUrl: 'https://drive.google.com/teacher-role',
     speakingMethodUrl: 'https://drive.google.com/speaking-method',
-    listeningMethodUrl: 'https://drive.google.com/listening-method'
+    listeningMethodUrl: 'https://drive.google.com/listening-method',
+    sessionBriefActiveSheetId: 101,
+    sessionBriefStagingSheetId: 202
   };
 }
 
