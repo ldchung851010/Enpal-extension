@@ -1,12 +1,18 @@
 {
   "name": "enpal-extension",
-  "version": "1.0.0",
+  "version": "2.0.0-playwright-spike.1",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test 'tests/**/*.test.js'",
     "test:unit": "node --test 'tests/unit/*.test.js'",
     "test:integration": "node --test 'tests/integration/*.test.js'",
-    "test:live": "node -e \"console.log('Run tests/live/enpal-v1-e2e-checklist.md in the configured production-like Chrome profile')\""
+    "test:playwright:unit": "node --test 'tests/unit/playwright-chatgpt-page.test.js'",
+    "test:live": "node -e \"console.log('Run tests/live/enpal-v1-e2e-checklist.md in the configured production-like Chrome profile')\"",
+    "pw:install": "npx playwright install chromium",
+    "pw:smoke:start": "node playwright/smoke-start.js"
+  },
+  "dependencies": {
+    "playwright": "1.63.0"
   }
 }
