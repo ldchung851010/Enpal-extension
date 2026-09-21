@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EnpalError, ERROR_CODES } from '../../core/errors.js';
 
-test('exports the approved structured runtime error codes', () => {
+test('exports structured runtime and workspace error codes', () => {
   assert.deepEqual(ERROR_CODES, {
     SETUP_REQUIRED: 'SETUP_REQUIRED',
     CONSISTENCY_ERROR: 'CONSISTENCY_ERROR',
@@ -12,19 +12,23 @@ test('exports the approved structured runtime error codes', () => {
     SHEET_WRITE_UNVERIFIED: 'SHEET_WRITE_UNVERIFIED',
     VOICE_START_FAILED: 'VOICE_START_FAILED',
     VOICE_STOP_FAILED: 'VOICE_STOP_FAILED',
-    CHAT_UI_UNAVAILABLE: 'CHAT_UI_UNAVAILABLE'
+    CHAT_UI_UNAVAILABLE: 'CHAT_UI_UNAVAILABLE',
+    WORKSPACE_NOT_FOUND: 'WORKSPACE_NOT_FOUND',
+    WORKSPACE_NOT_READY: 'WORKSPACE_NOT_READY',
+    WORKSPACE_LOCKED: 'WORKSPACE_LOCKED',
+    WORKSPACE_SOURCE_CONFLICT: 'WORKSPACE_SOURCE_CONFLICT'
   });
 });
 
 test('structured errors preserve code and recoverability', () => {
   const error = new EnpalError(
-    ERROR_CODES.SHEET_WRITE_UNVERIFIED,
-    'write failed',
+    ERROR_CODES.WORKSPACE_NOT_READY,
+    'workspace is still a draft',
     true
   );
   assert.equal(error.name, 'EnpalError');
-  assert.equal(error.message, 'write failed');
-  assert.equal(error.code, 'SHEET_WRITE_UNVERIFIED');
+  assert.equal(error.message, 'workspace is still a draft');
+  assert.equal(error.code, 'WORKSPACE_NOT_READY');
   assert.equal(error.recoverable, true);
   assert.ok(error instanceof Error);
 });
