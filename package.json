@@ -12,7 +12,9 @@
     "pw:install": "npx playwright install chromium",
     "pw:smoke:start": "node playwright/smoke-start.js",
     "test:playwright:browser": "node --test tests/playwright/*.browser.test.js",
-    "test:playwright": "npm run test:playwright:unit && npm run test:playwright:browser"
+    "test:playwright": "npm run test:playwright:unit && npm run test:playwright:browser",
+    "test:playwright:fixture": "node --test tests/playwright/chatgpt-page.fixture.test.js",
+    "test:playwright:all": "npm run test:playwright:unit && npm run test:playwright:fixture"
   },
   "dependencies": {
     "playwright": "1.63.0"
