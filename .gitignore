@@ -1,0 +1,4 @@
+node_modules/
+.enpal/
+test-results/
+playwright-report/
