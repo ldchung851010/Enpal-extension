@@ -64,12 +64,19 @@ function harness() {
 
   const activeBriefRows = [
     ['key', 'value'],
+    ['schema_version', '1.0'],
     ['ready_marker', 'READY'],
     ['curriculum_version', 'v1'],
     ['curriculum_sequence', '1'],
     ['lesson_id', 'L001'],
     ['Primary Skill', 'Speaking'],
-    ['Communicative Goal', 'Give a short update.']
+    ['Communicative Goal', 'Give a short update.'],
+    ['Focus', '["State status clearly"]'],
+    ['Review Focus', '[]'],
+    ['Situation', 'Team check-in'],
+    ['Target Performance', 'Give a clear short update.'],
+    ['Completion Criteria', '["Listener can follow the status"]'],
+    ['Mask Policy', 'OFF']
   ];
 
   const fetchImpl = async (url, options = {}) => {
