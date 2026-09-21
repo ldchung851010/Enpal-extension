@@ -7,8 +7,16 @@ import { createChatGptPage } from '../../playwright/chatgpt-page.js';
 const projectRoot = 'https://chatgpt.com/g/g-p-enpal';
 const projectRoute = projectRoot + '/project';
 
-async function setupFixture({ userTurn = true } = {}) {
-  const browser = await chromium.launch({ headless: true });
+async function setupFixture({
+  userTurn = true,
+  sendContract = 'id'
+} = {}) {
+  const executablePath = process.env.ENPAL_TEST_CHROMIUM || undefined;
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath,
+    args: executablePath ? ['--no-sandbox'] : []
+  });
   const page = await browser.newPage();
 
   const html = `<!doctype html>
@@ -27,12 +35,13 @@ async function setupFixture({ userTurn = true } = {}) {
     ></div>
 
     <button
-      id="composer-submit-button"
-      data-testid="send-button"
+      ${sendContract === 'id'
+        ? 'id="composer-submit-button"'
+        : 'data-testid="send-button"'}
       type="button"
       aria-disabled="true"
-      aria-label="Localized Send"
-    >Send</button>
+      aria-label="Localized action"
+    >Submit</button>
   </form>
 
   <div id="turns"></div>
@@ -52,7 +61,9 @@ async function setupFixture({ userTurn = true } = {}) {
 
   <script>
     const box = document.querySelector('#prompt-textarea');
-    const send = document.querySelector('#composer-submit-button');
+    const send = document.querySelector(
+      '#composer-submit-button, [data-testid="send-button"]'
+    );
 
     box.addEventListener('input', () => {
       send.setAttribute(
@@ -131,7 +142,8 @@ test('real Chromium: pointer overlay does not block keyboard Send activation', a
 
 test('real Chromium: canonical URL plus cleared composer survives user-turn DOM change', async () => {
   const { browser, page } = await setupFixture({
-    userTurn: false
+    userTurn: false,
+    sendContract: 'testid'
   });
 
   try {
