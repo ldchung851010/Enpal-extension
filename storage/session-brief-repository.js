@@ -1,5 +1,24 @@
 import { EnpalError, ERROR_CODES } from '../core/errors.js';
 
+const REQUIRED_KEYS = [
+  'schema_version',
+  'curriculum_version',
+  'curriculum_sequence',
+  'lesson_id',
+  'ready_marker',
+  'Primary Skill',
+  'Communicative Goal',
+  'Focus',
+  'Review Focus',
+  'Situation',
+  'Target Performance',
+  'Completion Criteria',
+  'Mask Policy'
+];
+
+const PRIMARY_SKILLS = new Set(['Speaking', 'Listening']);
+const MASK_POLICIES = new Set(['ON', 'OFF']);
+
 function rowsToObjects(values) {
   const [headers = [], ...rows] = values;
   return rows.map((row) =>
@@ -31,6 +50,104 @@ function normalizeBrief(brief) {
       : brief.curriculum_sequence,
     ready: readyMarker === 'READY'
   };
+}
+
+function isNonEmptyString(value) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function parseJsonArray(value, fieldName, { allowEmpty = false } = {}) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    throw new Error(`Session Brief ${fieldName} must be valid JSON`);
+  }
+
+  if (!Array.isArray(parsed) || (!allowEmpty && parsed.length === 0)) {
+    throw new Error(
+      `Session Brief ${fieldName} must be a ${allowEmpty ? '' : 'non-empty '}JSON array`
+    );
+  }
+
+  return parsed;
+}
+
+function validateReviewFocus(items) {
+  const requiredKeys = ['Review Item ID', 'Review Item', 'Weakness Detail'];
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new Error('Session Brief Review Focus entries must be objects');
+    }
+
+    const keys = Object.keys(item).sort();
+    const expectedKeys = [...requiredKeys].sort();
+    if (
+      keys.length !== expectedKeys.length ||
+      keys.some((key, index) => key !== expectedKeys[index])
+    ) {
+      throw new Error(
+        'Session Brief Review Focus entries must contain exactly Review Item ID, Review Item, and Weakness Detail'
+      );
+    }
+
+    if (!requiredKeys.every((key) => isNonEmptyString(item[key]))) {
+      throw new Error('Session Brief Review Focus entry values must be non-empty strings');
+    }
+  }
+}
+
+function validateStructuredBrief(brief) {
+  for (const key of REQUIRED_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(brief, key)) {
+      throw new Error(`Session Brief staging is missing required key: ${key}`);
+    }
+  }
+
+  if (
+    !isNonEmptyString(brief.schema_version) ||
+    !isNonEmptyString(brief.curriculum_version) ||
+    !isNonEmptyString(brief.lesson_id) ||
+    !isNonEmptyString(brief['Communicative Goal']) ||
+    !isNonEmptyString(brief.Situation) ||
+    !isNonEmptyString(brief['Target Performance'])
+  ) {
+    throw new Error('Session Brief staging contains an empty required text field');
+  }
+
+  if (
+    !Number.isInteger(Number(brief.curriculum_sequence)) ||
+    Number(brief.curriculum_sequence) <= 0
+  ) {
+    throw new Error('Session Brief curriculum_sequence must be a positive integer');
+  }
+
+  if (!PRIMARY_SKILLS.has(brief['Primary Skill'])) {
+    throw new Error('Session Brief Primary Skill must be Speaking or Listening');
+  }
+
+  if (!MASK_POLICIES.has(brief['Mask Policy'])) {
+    throw new Error('Session Brief Mask Policy must be ON or OFF');
+  }
+
+  const focus = parseJsonArray(brief.Focus, 'Focus');
+  if (!focus.every(isNonEmptyString)) {
+    throw new Error('Session Brief Focus entries must be non-empty strings');
+  }
+
+  const completionCriteria = parseJsonArray(
+    brief['Completion Criteria'],
+    'Completion Criteria'
+  );
+  if (!completionCriteria.every(isNonEmptyString)) {
+    throw new Error('Session Brief Completion Criteria entries must be non-empty strings');
+  }
+
+  const reviewFocus = parseJsonArray(brief['Review Focus'], 'Review Focus', {
+    allowEmpty: true
+  });
+  validateReviewFocus(reviewFocus);
 }
 
 export function createSessionBriefRepository({
@@ -71,14 +188,11 @@ export function createSessionBriefRepository({
         );
       }
 
-      if (!staging.ready) {
+      if (!staging.ready || staging.ready_marker !== 'READY') {
         throw new Error('Session Brief staging is not READY');
       }
 
-      if (!staging['Primary Skill'] || !staging['Communicative Goal']) {
-        throw new Error('Session Brief staging is structurally incomplete');
-      }
-
+      validateStructuredBrief(staging);
       return staging;
     },
 
