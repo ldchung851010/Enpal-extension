@@ -131,6 +131,20 @@ export function createChatGptAdapter(chromeApi = chrome, {
       return openTab(url);
     },
 
+    async focusTab(tabId) {
+      if (!Number.isInteger(tabId)) {
+        throw new EnpalError(
+          ERROR_CODES.CHAT_UI_UNAVAILABLE,
+          'ChatGPT tab id is invalid',
+          true
+        );
+      }
+      if (typeof chromeApi.tabs.update === 'function') {
+        await chromeApi.tabs.update(tabId, { active: true });
+      }
+      return tabId;
+    },
+
     async sendControl(tabId, controlText) {
       if (!isEnpalControl(controlText)) {
         throw new TypeError('sendControl requires an ENPAL_CONTROL envelope');
