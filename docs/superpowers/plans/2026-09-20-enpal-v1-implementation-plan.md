@@ -1099,7 +1099,7 @@ git commit -m "feat: isolate trusted voice and listening mask controls"
 - `status()`.
 - The controller accepts only filtered teacher/learner turns; `ENPAL_CONTROL` items are removed before `decisionProvider`.
 
-- [ ] **Step 1: Write failing supervisor tests**
+- [x] **Step 1: Write failing supervisor tests**
 
 ```js
 import test from 'node:test';
@@ -1176,7 +1176,7 @@ test('provider failure sets degraded status without fabricating a rubric decisio
 });
 ```
 
-- [ ] **Step 2: Run tests and confirm failure**
+- [x] **Step 2: Run tests and confirm failure**
 
 ```bash
 node --test tests/unit/supervisor-controller.test.js
@@ -1184,7 +1184,7 @@ node --test tests/unit/supervisor-controller.test.js
 
 Expected: FAIL.
 
-- [ ] **Step 3: Implement controller**
+- [x] **Step 3: Implement controller**
 
 Use status values:
 
@@ -1204,7 +1204,7 @@ When `decisionProvider` throws, catch it, set `DEGRADED`, and return:
 
 This value is internal orchestration status, not a fake Supervisor rubric decision.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 node --test tests/unit/supervisor-controller.test.js
@@ -1213,7 +1213,7 @@ npm run test:unit
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add supervisor tests/unit/supervisor-controller.test.js
