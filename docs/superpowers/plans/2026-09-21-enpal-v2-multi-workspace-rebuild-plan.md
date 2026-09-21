@@ -69,20 +69,20 @@ Required behavior:
 
 **Task 3 evidence (2026-09-21):** Task 1–3 regression run; 33/33 tests PASS. Legacy global `enpalRecovery` is not read by the new journal.\n\n### Task 4 — OAuth and Thin Sheets Client
 
-- [ ] Chrome Identity contract tests PASS.
-- [ ] Sheets read/update/batchUpdate tests PASS.
-- [ ] Production OAuth config retained.
+- [x] Chrome Identity contract tests PASS.
+- [x] Sheets read/update/batchUpdate tests PASS.
+- [x] Production OAuth config retained.
 - [ ] Live OAuth read/write gate PASS.
 
-### Task 5 — Workspace-Scoped Durable Repositories
+**Task 4 automated evidence (2026-09-21):** OAuth + Sheets focused suite PASS 9/9. Production stable extension key/client retained and generic Google API host permission removed. Live OAuth read/write remains OPEN until executed in loaded Chrome.\n\n### Task 5 — Workspace-Scoped Durable Repositories
 
 Curriculum, Sessions, Session Brief and Review Ledger repositories receive explicit Workspace configuration.
 
-- [ ] No repository reads an implicit global spreadsheet ID.
-- [ ] One-active-session invariant is evaluated per Workspace.
-- [ ] Repository unit tests PASS.
+- [x] No repository reads an implicit global spreadsheet ID.
+- [x] One-active-session invariant is evaluated per Workspace.
+- [x] Repository unit tests PASS.
 
-### Task 6 — ENPAL_CONTROL and Project-Bound ChatGPT Adapter
+**Task 5 evidence (2026-09-21):** workspace-scoped repository suite PASS 10/10. A/B source isolation, per-Workspace active-session consistency, foreign workspace fail-closed, and atomic Brief promotion grid IDs are covered.\n\n### Task 6 — ENPAL_CONTROL and Project-Bound ChatGPT Adapter
 
 - [ ] Adapter receives explicit Workspace Project URL.
 - [ ] New conversation must be confirmed inside that Project before binding.
