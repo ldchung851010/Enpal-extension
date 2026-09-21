@@ -1,0 +1,59 @@
+name: temp explicit ChatGPT send verification
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  red-replay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2049bcdf3705a27ac3e11a49409206b38987723b
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Replay send-control regressions on parent
+        shell: bash
+        run: |
+          git diff d0d529ac6e63fef6d597728cc181471e0073dade 2049bcdf3705a27ac3e11a49409206b38987723b --             tests/unit/voice-debugger.test.js             tests/unit/service-worker.test.js             tests/unit/chatgpt-adapter.test.js             tests/unit/chatgpt-runtime.test.js > /tmp/send-tests.patch
+          git checkout --detach d0d529ac6e63fef6d597728cc181471e0073dade
+          git apply /tmp/send-tests.patch
+          set +e
+          node --test             tests/unit/voice-debugger.test.js             tests/unit/service-worker.test.js             tests/unit/chatgpt-adapter.test.js             tests/unit/chatgpt-runtime.test.js             > /tmp/red.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/red.log
+          if [ "$status" -eq 0 ]; then
+            echo "RED replay unexpectedly passed."
+            exit 1
+          fi
+          echo "RED confirmed: explicit Send-control regressions fail on parent."
+
+  green-exact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 2049bcdf3705a27ac3e11a49409206b38987723b
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Exact SHA
+        run: git rev-parse HEAD
+      - name: Focused send-control tests
+        run: node --test tests/unit/voice-debugger.test.js tests/unit/service-worker.test.js tests/unit/chatgpt-adapter.test.js tests/unit/chatgpt-runtime.test.js
+      - name: Full suite
+        run: npm test
+      - name: Package exact source
+        run: zip -r enpal-2049bcdf3705a27ac3e11a49409206b38987723b.zip . -x ".git/*"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enpal-2049bcdf3705a27ac3e11a49409206b38987723b
+          path: enpal-2049bcdf3705a27ac3e11a49409206b38987723b.zip
+          if-no-files-found: error
