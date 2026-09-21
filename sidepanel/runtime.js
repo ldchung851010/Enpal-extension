@@ -195,7 +195,7 @@ export function createRuntimeWorkflow({
       readPlatformGateMarker(chromeApi, workspace),
     markPlatformGateVerified: () =>
       writePlatformGateMarker(chromeApi, workspace),
-    readActiveBrief: () => briefs.readActive()
+    readActiveBrief: () => briefs.verifyActive()
   });
 
   return createWorkflow({
