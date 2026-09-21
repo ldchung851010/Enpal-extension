@@ -148,7 +148,7 @@ export function createWorkflow(deps) {
     pausePollMs = 500,
     endVerifyAttempts = 40,
     endPollMs = 500,
-    briefPromotionRange = { rowCount: 12, columnCount: 2 },
+    briefPromotionRange = { rowCount: 14, columnCount: 2 },
     sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
   } = deps;
 
