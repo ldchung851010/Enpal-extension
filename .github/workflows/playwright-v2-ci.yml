@@ -1,0 +1,29 @@
+name: Playwright V2 Internal Gate
+
+on:
+  push:
+    branches:
+      - playwright-v2
+
+jobs:
+  playwright-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright gate
+        run: npm run test:playwright
