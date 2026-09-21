@@ -25,7 +25,7 @@ Run the automated gate with:
 npm run test:playwright
 ```
 
-The gate contains 7 contract/unit cases and 3 real Chromium cases.
+The gate contains 8 contract/unit cases and 3 real Chromium cases.
 
 ## Recommended Windows mode: attach to normal Chrome
 
@@ -83,6 +83,7 @@ npm run pw:install
 
 Task 1 is accepted only when:
 
+- the existing EnPal regression suite passes;
 - `npm run test:playwright` passes;
 - the live smoke run prints `PASS: authoritative conversation created inside Project`;
 - the returned conversation URL belongs to the configured Project.
