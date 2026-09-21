@@ -11,7 +11,7 @@
     "test:live": "node -e \"console.log('Run tests/live/enpal-v1-e2e-checklist.md in the configured production-like Chrome profile')\"",
     "pw:install": "npx playwright install chromium",
     "pw:smoke:start": "node playwright/smoke-start.js",
-    "test:playwright:browser": "node --test tests/playwright/chatgpt-page.browser.test.js",
+    "test:playwright:browser": "node --test tests/playwright/*.browser.test.js",
     "test:playwright": "npm run test:playwright:unit && npm run test:playwright:browser"
   },
   "dependencies": {
