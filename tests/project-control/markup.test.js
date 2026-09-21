@@ -35,7 +35,8 @@ test('dashboard markup exposes all required read-only sections and controls', ()
   assert.doesNotMatch(html, /type="module"/i);
   assert.match(html, /https:\/\/github\.com\/ldchung851010\/Enpal-extension/);
   assert.match(html, /https:\/\/github\.com\/ldchung851010\/Enpal-extension\/blob\/main\/docs\/superpowers\/plans\/2026-09-20-enpal-v1-implementation-plan\.md/);
-  assert.match(html, /raw\.githubusercontent\.com\/ldchung851010\/Enpal-extension\/main/);
+  assert.match(html, /const RAW_ROOT = `https:\/\/raw\.githubusercontent\.com\/\$\{OWNER\}\/\$\{REPO\}`/);
+  assert.match(html, /const currentRef = \(\) => latestMainSha \|\| BRANCH;/);
   assert.doesNotMatch(html, /href=["']#["']/);
   assert.match(html, /Platform gates theo từng phase/);
   assert.match(html, /Task 1–2 có thể bắt đầu/);
