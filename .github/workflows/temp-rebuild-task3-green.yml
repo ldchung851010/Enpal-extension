@@ -1,0 +1,33 @@
+name: temp rebuild task3 green
+
+on:
+  push:
+    branches:
+      - temp/rebuild-task3-green-ci
+
+permissions:
+  contents: read
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 4abd4599c3c2f6741c168d103f77ea7f0166cdcf
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Exact SHA
+        run: test "$(git rev-parse HEAD)" = "4abd4599c3c2f6741c168d103f77ea7f0166cdcf"
+      - name: Focused Task 3 tests
+        run: node --test tests/unit/google-auth.test.js tests/unit/sheets-client.test.js tests/unit/task3-manifest.test.js
+      - name: Full suite
+        run: npm test
+      - name: Package Task 3 candidate
+        run: zip -r enpal-task3-4abd4599c3c2f6741c168d103f77ea7f0166cdcf.zip . -x ".git/*"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enpal-task3-4abd4599c3c2f6741c168d103f77ea7f0166cdcf
+          path: enpal-task3-4abd4599c3c2f6741c168d103f77ea7f0166cdcf.zip
+          if-no-files-found: error
