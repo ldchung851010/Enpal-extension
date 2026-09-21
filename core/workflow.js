@@ -67,6 +67,28 @@ function isConversationInsideProject(candidateUrl, projectUrl) {
   }
 }
 
+const END_PHASE_ORDER = Object.freeze([
+  'CHAT_BOUND',
+  'PAUSE_COMMITTED',
+  'ANALYZE_COMMITTED',
+  'UPDATE_COMMITTED',
+  'BRIEF_STAGED',
+  'BRIEF_PROMOTED',
+  'SESSION_COMPLETED'
+]);
+
+function endPhaseAtLeast(current, expected) {
+  const currentIndex = END_PHASE_ORDER.indexOf(current);
+  const expectedIndex = END_PHASE_ORDER.indexOf(expected);
+  return currentIndex >= 0 && expectedIndex >= 0 && currentIndex >= expectedIndex;
+}
+
+function completedSequencesThrough(sequence) {
+  const current = Number(sequence);
+  if (!Number.isInteger(current) || current < 1) return [sequence];
+  return Array.from({ length: current }, (_, index) => index + 1);
+}
+
 function pauseCheckpointValue(session) {
   for (const field of [
     'pause_checkpoint',
@@ -123,6 +145,9 @@ export function createWorkflow(deps) {
     createSessionId = createDefaultSessionId,
     pauseVerifyAttempts = 40,
     pausePollMs = 500,
+    endVerifyAttempts = 40,
+    endPollMs = 500,
+    briefPromotionRange = { rowCount: 12, columnCount: 2 },
     sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
   } = deps;
 
@@ -473,6 +498,298 @@ export function createWorkflow(deps) {
     };
   }
 
+
+  async function openBoundConversation(session) {
+    if (
+      typeof session?.chat_url !== 'string' ||
+      session.chat_url.trim() === ''
+    ) {
+      throw new EnpalError(
+        ERROR_CODES.CONSISTENCY_ERROR,
+        'Active Session is missing its authoritative chat_url',
+        false
+      );
+    }
+
+    const tabId = await chatgpt.openConversation(session.chat_url);
+    const actualUrl = await chatgpt.getConversationUrl(tabId);
+    if (normalizeUrl(actualUrl) !== normalizeUrl(session.chat_url)) {
+      throw new EnpalError(
+        ERROR_CODES.WRONG_CHAT,
+        'Opened ChatGPT conversation does not match active Session chat_url',
+        true
+      );
+    }
+    return tabId;
+  }
+
+  async function verifyEndPhase(sessionId, expectedPhase) {
+    const attempts = Math.max(1, Number(endVerifyAttempts) || 1);
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const current = await sessions.getById(sessionId);
+      if (
+        current &&
+        (current.status === 'PROCESSING' || current.status === 'COMPLETED') &&
+        endPhaseAtLeast(current.phase, expectedPhase)
+      ) {
+        return current;
+      }
+
+      if (attempt < attempts - 1 && endPollMs > 0) {
+        await sleep(endPollMs);
+      }
+    }
+
+    throw new EnpalError(
+      ERROR_CODES.SHEET_WRITE_UNVERIFIED,
+      'END phase could not be verified: ' + expectedPhase,
+      true
+    );
+  }
+
+  async function sendEndControl(tabId, sessionId, type, body) {
+    await chatgpt.sendControl(tabId, makeControl({
+      type,
+      sessionId,
+      body
+    }));
+    await chatgpt.waitUntilIdle(tabId);
+  }
+
+  async function determineNextLesson(session) {
+    const nextLesson = await curriculum.getNextLesson(
+      completedSequencesThrough(session.curriculum_sequence)
+    );
+    if (!nextLesson) {
+      throw new EnpalError(
+        ERROR_CODES.CONSISTENCY_ERROR,
+        'No deterministic next Base Lesson is available',
+        false
+      );
+    }
+    return nextLesson;
+  }
+
+  async function attemptRenameOnce(tabId, session, knownJournal = null) {
+    const recoveryState = knownJournal ?? await journal.read();
+    if (recoveryState.renameAttempted === true) return;
+
+    try {
+      await chatgpt.renameConversation(
+        tabId,
+        'EnPal ' + String(session.lesson_id || session.session_id)
+      );
+    } catch {
+      // Rename is best-effort metadata and never changes core completion.
+    }
+
+    await journal.write({ renameAttempted: true });
+  }
+
+  async function runEndPipeline(session, tabId, knownJournal = null) {
+    let current = { ...session };
+    let nextLesson = null;
+    let stagingVerified = false;
+
+    if (!endPhaseAtLeast(current.phase, 'ANALYZE_COMMITTED')) {
+      await sendEndControl(
+        tabId,
+        current.session_id,
+        'ANALYZE',
+        [
+          'Analyze only pedagogical teacher/learner evidence from this lesson.',
+          'Exclude all ENPAL_CONTROL traffic from lesson evidence.',
+          'Persist the required ANALYZE result to the active Session record.',
+          'Only after the durable result is written, set lifecycle_status=PROCESSING and pipeline_phase=ANALYZE_COMMITTED.'
+        ].join('\n')
+      );
+      current = await verifyEndPhase(current.session_id, 'ANALYZE_COMMITTED');
+      await journal.write({ phase: 'ANALYZE_COMMITTED' });
+    }
+
+    if (!endPhaseAtLeast(current.phase, 'UPDATE_COMMITTED')) {
+      await sendEndControl(
+        tabId,
+        current.session_id,
+        'UPDATE',
+        [
+          'Use only the verified ANALYZE result from the active Session.',
+          'Apply the approved Review Ledger transition rules.',
+          'Exact Review Ledger spreadsheet ID: ' + config.reviewLedgerSpreadsheetId,
+          'Verify the Review Ledger write before setting pipeline_phase=UPDATE_COMMITTED.',
+          'Keep lifecycle_status=PROCESSING.'
+        ].join('\n')
+      );
+      current = await verifyEndPhase(current.session_id, 'UPDATE_COMMITTED');
+      await journal.write({ phase: 'UPDATE_COMMITTED' });
+    }
+
+    if (!endPhaseAtLeast(current.phase, 'BRIEF_STAGED')) {
+      nextLesson = await determineNextLesson(current);
+      await sendEndControl(
+        tabId,
+        current.session_id,
+        'REVIEW_PLANNER',
+        [
+          'Create the next Session Brief using only these two approved sources.',
+          'Exact next Base Lesson: ' + JSON.stringify(nextLesson),
+          'Exact Review Ledger spreadsheet ID: ' + config.reviewLedgerSpreadsheetId,
+          'Do not replace or alter the Base Lesson core curriculum identity.',
+          'Write the complete next Session Brief to _STAGING only.'
+        ].join('\n')
+      );
+
+      await briefs.verifyStaging(nextLesson);
+      stagingVerified = true;
+      current = await sessions.markState(
+        current.session_id,
+        'PROCESSING',
+        { phase: 'BRIEF_STAGED' }
+      );
+      await journal.write({ phase: 'BRIEF_STAGED' });
+    }
+
+    if (
+      endPhaseAtLeast(current.phase, 'BRIEF_STAGED') &&
+      !endPhaseAtLeast(current.phase, 'BRIEF_PROMOTED') &&
+      !stagingVerified
+    ) {
+      nextLesson = nextLesson ?? await determineNextLesson(current);
+      const activeBrief = await briefs.readActive();
+
+      if (activeBrief?.ready === true && sameIdentity(activeBrief, nextLesson)) {
+        current = await sessions.markState(
+          current.session_id,
+          'PROCESSING',
+          { phase: 'BRIEF_PROMOTED' }
+        );
+        await journal.write({ phase: 'BRIEF_PROMOTED' });
+      } else {
+        await briefs.verifyStaging(nextLesson);
+        stagingVerified = true;
+      }
+    }
+
+    if (!endPhaseAtLeast(current.phase, 'BRIEF_PROMOTED')) {
+      await briefs.promoteStaging(briefPromotionRange);
+      current = await sessions.markState(
+        current.session_id,
+        'PROCESSING',
+        { phase: 'BRIEF_PROMOTED' }
+      );
+      await journal.write({ phase: 'BRIEF_PROMOTED' });
+    }
+
+    if (!endPhaseAtLeast(current.phase, 'SESSION_COMPLETED')) {
+      current = await sessions.markState(
+        current.session_id,
+        'COMPLETED',
+        { phase: 'SESSION_COMPLETED' }
+      );
+      await journal.write({ phase: 'SESSION_COMPLETED' });
+    }
+
+    await attemptRenameOnce(tabId, current, knownJournal);
+    await journal.write({ appState: 'READY', status: 'READY' });
+
+    return {
+      action: 'READY',
+      session: current,
+      nextLesson
+    };
+  }
+
+  async function endCurrent() {
+    const activeSessions = await sessions.listActive();
+    const session = activeSessions[0];
+
+    if (
+      activeSessions.length !== 1 ||
+      session?.status !== 'IN_PROGRESS'
+    ) {
+      throw new EnpalError(
+        ERROR_CODES.CONSISTENCY_ERROR,
+        'END requires one bound IN_PROGRESS Session',
+        false
+      );
+    }
+
+    const tabId = await openBoundConversation(session);
+
+    await chatgpt.stopVoice(tabId);
+    await supervisor.stop();
+
+    let processingSession = await sessions.markState(
+      session.session_id,
+      'PROCESSING',
+      { phase: session.phase || 'CHAT_BOUND' }
+    );
+
+    await journal.write({
+      appState: 'PROCESSING',
+      sessionId: session.session_id,
+      chatUrl: session.chat_url,
+      phase: processingSession.phase,
+      renameAttempted: false
+    });
+
+    return runEndPipeline(processingSession, tabId);
+  }
+
+  async function resumeProcessingSession(session, knownJournal = null) {
+    if (!session) {
+      throw new EnpalError(
+        ERROR_CODES.CONSISTENCY_ERROR,
+        'No Session is available for PROCESSING recovery',
+        false
+      );
+    }
+
+    const recoveryState = knownJournal ?? await journal.read();
+
+    if (
+      session.status === 'COMPLETED' &&
+      session.phase === 'SESSION_COMPLETED' &&
+      recoveryState.renameAttempted === true
+    ) {
+      await journal.write({ appState: 'READY', status: 'READY' });
+      return {
+        action: 'READY',
+        session,
+        nextLesson: null
+      };
+    }
+
+    if (
+      session.status !== 'PROCESSING' &&
+      !(session.status === 'COMPLETED' && session.phase === 'SESSION_COMPLETED')
+    ) {
+      throw new EnpalError(
+        ERROR_CODES.CONSISTENCY_ERROR,
+        'PROCESSING recovery requires a PROCESSING or completed Session',
+        false
+      );
+    }
+
+    const tabId = await openBoundConversation(session);
+    return runEndPipeline(session, tabId, recoveryState);
+  }
+
+  async function resumeProcessingCurrent() {
+    const recoveryState = await journal.read();
+    let session = null;
+
+    if (typeof recoveryState.sessionId === 'string' && recoveryState.sessionId) {
+      session = await sessions.getById(recoveryState.sessionId);
+    } else {
+      const activeSessions = await sessions.listActive();
+      session = activeSessions.find((item) => item.status === 'PROCESSING') ?? null;
+    }
+
+    return resumeProcessingSession(session, recoveryState);
+  }
+
   return {
     async start() {
       const activeSessions = await sessions.listActive();
@@ -506,10 +823,7 @@ export function createWorkflow(deps) {
         case 'RESUME_PAUSED':
           return resumePaused(decision.session, activeBrief);
         case 'RESUME_PROCESSING':
-          return {
-            action: 'RESUME_PROCESSING',
-            session: decision.session
-          };
+          return resumeProcessingSession(decision.session);
         case 'READY':
           if (decision.session) {
             return {
@@ -525,6 +839,14 @@ export function createWorkflow(deps) {
 
     async pause() {
       return pauseCurrent();
+    },
+
+    async end() {
+      return endCurrent();
+    },
+
+    async resumeProcessing() {
+      return resumeProcessingCurrent();
     }
   };
 }

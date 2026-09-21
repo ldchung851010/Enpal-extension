@@ -1458,7 +1458,7 @@ git commit -m "feat: implement durable PAUSE workflow"
 - Adds `workflow.end()`.
 - Adds `workflow.resumeProcessing()`.
 
-- [ ] **Step 1: Write failing happy-path END test**
+- [x] **Step 1: Write failing happy-path END test**
 
 Assert exact phase order:
 
@@ -1480,7 +1480,7 @@ stop Voice
 
 Assert current Session is not marked COMPLETED before brief promotion succeeds.
 
-- [ ] **Step 2: Write failing idempotent restart tests**
+- [x] **Step 2: Write failing idempotent restart tests**
 
 Create separate tests for restart after:
 
@@ -1489,14 +1489,14 @@ Create separate tests for restart after:
 - BRIEF_PROMOTED: skip Planner and promotion, mark Session COMPLETED.
 - SESSION_COMPLETED: do not re-run core pipeline; rename may retry once as best-effort metadata.
 
-- [ ] **Step 3: Write failing rename and Voice-stop policy tests**
+- [x] **Step 3: Write failing rename and Voice-stop policy tests**
 
 Assert:
 
 - rename failure still resolves app to READY;
 - Voice-stop failure prevents ANALYZE and returns recoverable ERROR.
 
-- [ ] **Step 4: Implement END as phase-driven orchestration**
+- [x] **Step 4: Implement END as phase-driven orchestration**
 
 Store phase after each durable verification:
 
@@ -1513,7 +1513,7 @@ Review Planner control must refer only to:
 
 Session Brief staging verification is machine structure/identity only.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```bash
 node --test tests/integration/end-workflow.test.js
