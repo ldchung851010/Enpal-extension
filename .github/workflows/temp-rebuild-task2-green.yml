@@ -1,0 +1,26 @@
+name: temp rebuild task2 green
+
+on:
+  push:
+    branches:
+      - temp/rebuild-task2-green-ci
+
+permissions:
+  contents: read
+
+jobs:
+  green:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c86fd05022cc3b4129991a424e8812a2caaf3c3e
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Exact SHA
+        run: test "$(git rev-parse HEAD)" = "c86fd05022cc3b4129991a424e8812a2caaf3c3e"
+      - name: Focused Task 2 tests
+        run: node --test tests/unit/local-journal.test.js
+      - name: Full suite
+        run: npm test
