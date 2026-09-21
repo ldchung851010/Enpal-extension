@@ -1,0 +1,14 @@
+name: Project URL settings RED
+on:
+  push:
+    branches:
+      - feature/project-url-settings
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test tests/unit/project-settings.test.js tests/unit/sidepanel-state.test.js tests/unit/sidepanel-runtime.test.js
