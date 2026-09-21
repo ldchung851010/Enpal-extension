@@ -1127,7 +1127,7 @@ export function createWorkflow(deps) {
         );
       }
       await setupGate.confirmPlatformGate();
-      return verifySetupOnly({ interactive: true });
+      return verifySetupOnly({ interactive: false });
     }
   };
 }
