@@ -1538,7 +1538,7 @@ git commit -m "feat: implement recoverable EnPal END pipeline"
 - Side Panel invokes only public workflow methods: `start()`, `pause()`, `end()`, `recover()`.
 - No repository/DOM access directly from UI.
 
-- [ ] **Step 1: Write failing UI-state tests**
+- [x] **Step 1: Write failing UI-state tests**
 
 Test the pure `getSidePanelView(state, recoverable)` function:
 
@@ -1558,7 +1558,7 @@ test('maps approved states to legal learner actions', () => {
 });
 ```
 
-- [ ] **Step 2: Write failing setup integration test**
+- [x] **Step 2: Write failing setup integration test**
 
 Setup succeeds only when:
 
@@ -1572,7 +1572,7 @@ Expected app state: `READY`.
 
 Missing any one requirement: `SETUP_REQUIRED`.
 
-- [ ] **Step 3: Implement minimal learner UI**
+- [x] **Step 3: Implement minimal learner UI**
 
 Create `sidepanel/view-model.js` as the only state-to-copy/action mapping:
 
@@ -1606,7 +1606,7 @@ Use buttons with stable IDs:
 
 Only the valid buttons for the current state are visible/enabled.
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 node --test tests/unit/sidepanel-state.test.js tests/integration/setup-flow.test.js
@@ -1615,7 +1615,7 @@ npm test
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add sidepanel tests

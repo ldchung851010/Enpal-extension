@@ -142,6 +142,7 @@ export function createWorkflow(deps) {
     chatgpt,
     mask,
     supervisor,
+    setupGate = null,
     createSessionId = createDefaultSessionId,
     pauseVerifyAttempts = 40,
     pausePollMs = 500,
@@ -790,6 +791,68 @@ export function createWorkflow(deps) {
     return resumeProcessingSession(session, recoveryState);
   }
 
+
+  async function recoverCurrent({ interactiveSetup = false } = {}) {
+    if (setupGate) {
+      const setup = await setupGate.verify({ interactive: interactiveSetup });
+      if (setup?.state !== 'READY') {
+        return setup;
+      }
+    }
+
+    const activeSessions = await sessions.listActive();
+    const activeBrief = await briefs.readActive();
+    const journalState = await journal.read?.() ?? {};
+
+    const decision = decideRecovery({
+      journal: journalState,
+      activeSessions,
+      activeBrief
+    });
+
+    switch (decision.action) {
+      case 'CONSISTENCY_ERROR':
+        throw new EnpalError(
+          ERROR_CODES.CONSISTENCY_ERROR,
+          'More than one active Session exists',
+          false
+        );
+      case 'SETUP_REQUIRED':
+        return { state: 'SETUP_REQUIRED', action: 'SETUP_REQUIRED' };
+      case 'RECOVER_STARTING': {
+        const result = await recoverStarting(
+          decision.session,
+          activeBrief,
+          decision.journal
+        );
+        return { ...result, state: 'LEARNING' };
+      }
+      case 'RESUME_PAUSED':
+        return {
+          state: 'PAUSED',
+          action: 'PAUSED',
+          session: decision.session
+        };
+      case 'RESUME_PROCESSING': {
+        const result = await resumeProcessingSession(
+          decision.session,
+          journalState
+        );
+        return { ...result, state: 'READY' };
+      }
+      case 'READY':
+        return decision.session
+          ? {
+              state: 'LEARNING',
+              action: 'ALREADY_IN_PROGRESS',
+              session: decision.session
+            }
+          : { state: 'READY', action: 'READY' };
+      default:
+        throw new Error('Unsupported recovery action: ' + decision.action);
+    }
+  }
+
   return {
     async start() {
       const activeSessions = await sessions.listActive();
@@ -847,6 +910,10 @@ export function createWorkflow(deps) {
 
     async resumeProcessing() {
       return resumeProcessingCurrent();
+    },
+
+    async recover(options) {
+      return recoverCurrent(options);
     }
   };
 }
