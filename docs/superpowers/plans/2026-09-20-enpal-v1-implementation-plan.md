@@ -1638,7 +1638,7 @@ git commit -m "feat: add setup gate and learner side panel states"
   - no long-lived workflow loop.
 - Side panel/workflow owns recoverable orchestration.
 
-- [ ] **Step 1: Write failing service-worker tests**
+- [x] **Step 1: Write failing service-worker tests**
 
 Using `loadClassicScript` is not required because service worker is an ES module; import it with a fake global `chrome`.
 
@@ -1648,7 +1648,7 @@ Assert:
 - `ENPAL_TRUSTED_ACTIVATE` delegates to debugger helper;
 - no START/PAUSE/END pipeline is stored in module-global worker state.
 
-- [ ] **Step 2: Run test and confirm failure**
+- [x] **Step 2: Run test and confirm failure**
 
 ```bash
 node --test tests/unit/service-worker.test.js
@@ -1656,7 +1656,7 @@ node --test tests/unit/service-worker.test.js
 
 Expected: FAIL until message routing exists.
 
-- [ ] **Step 3: Implement short event handlers**
+- [x] **Step 3: Implement short event handlers**
 
 Keep the worker roughly:
 
@@ -1678,7 +1678,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 ```bash
 node --test tests/unit/service-worker.test.js
@@ -1687,7 +1687,7 @@ npm test
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add background sidepanel tests/unit/service-worker.test.js

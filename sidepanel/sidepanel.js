@@ -1,4 +1,5 @@
 import { getSidePanelView } from './view-model.js';
+import { createRuntimeWorkflow } from './runtime.js';
 
 const ACTION_BUTTONS = Object.freeze({
   SETUP: 'setup-action',
@@ -45,6 +46,18 @@ export function createSidePanelController({ workflow, documentRef = document }) 
     }
   }
 
+  function applyFailure(error) {
+    currentState = 'ERROR';
+    recoverable = error?.recoverable === true;
+    render();
+  }
+
+  function applyResult(action, result) {
+    currentState = learnerStateFromResult(action, result);
+    recoverable = false;
+    render();
+  }
+
   async function invoke(action) {
     try {
       let result;
@@ -68,14 +81,25 @@ export function createSidePanelController({ workflow, documentRef = document }) 
           return;
       }
 
-      currentState = learnerStateFromResult(action, result);
-      recoverable = false;
+      applyResult(action, result);
     } catch (error) {
-      currentState = 'ERROR';
-      recoverable = error?.recoverable === true;
+      applyFailure(error);
     }
+  }
 
-    render();
+  async function initialize() {
+    try {
+      const result = await workflow.recover();
+      currentState = typeof result?.state === 'string'
+        ? result.state
+        : learnerStateFromResult('RETRY', result);
+      recoverable = false;
+      render();
+      return result;
+    } catch (error) {
+      applyFailure(error);
+      return null;
+    }
   }
 
   for (const [action, id] of Object.entries(ACTION_BUTTONS)) {
@@ -87,27 +111,13 @@ export function createSidePanelController({ workflow, documentRef = document }) 
 
   return {
     render,
-    invoke
+    invoke,
+    initialize
   };
 }
 
-if (typeof document !== 'undefined') {
-  const workflow = globalThis.EnPalWorkflow;
-  if (workflow) {
-    createSidePanelController({ workflow, documentRef: document });
-  } else {
-    const view = getSidePanelView('SETUP_REQUIRED', false);
-    document.documentElement.dataset.enpalState = view.state;
-    const status = document.getElementById('status');
-    if (status) status.textContent = view.message;
-
-    const allowed = new Set(view.actions);
-    for (const [action, id] of Object.entries(ACTION_BUTTONS)) {
-      const button = document.getElementById(id);
-      if (!button) continue;
-      const visible = allowed.has(action);
-      button.hidden = !visible;
-      button.disabled = !visible;
-    }
-  }
+if (typeof document !== 'undefined' && typeof chrome !== 'undefined') {
+  const workflow = createRuntimeWorkflow({ chromeApi: chrome });
+  const controller = createSidePanelController({ workflow, documentRef: document });
+  controller.initialize();
 }

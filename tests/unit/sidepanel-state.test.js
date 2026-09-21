@@ -116,3 +116,27 @@ test('Side Panel actions invoke only public workflow methods and render resultin
     ['end']
   ]);
 });
+
+
+test('Side Panel initializes from durable workflow recovery when reopened', async () => {
+  const calls = [];
+  const workflow = {
+    async recover(options) {
+      calls.push(['recover', options]);
+      return { state: 'LEARNING', action: 'ALREADY_IN_PROGRESS' };
+    },
+    async start() {},
+    async pause() {},
+    async end() {}
+  };
+  const fakeDocument = makeFakeDocument();
+  const controller = createSidePanelController({ workflow, documentRef: fakeDocument });
+
+  await controller.initialize();
+
+  assert.deepEqual(calls, [['recover', undefined]]);
+  assert.equal(fakeDocument.documentElement.dataset.enpalState, 'LEARNING');
+  assert.equal(fakeDocument.elements['pause-action'].hidden, false);
+  assert.equal(fakeDocument.elements['end-action'].hidden, false);
+  assert.equal(fakeDocument.elements['start-action'].hidden, true);
+});
