@@ -64,7 +64,7 @@ npm run pw:install
 npm run test:playwright:unit
 ```
 
-Expected: 4 passing tests.
+Expected: 6 passing tests.
 
 ## Fallback: Playwright-launched browser
 
