@@ -1774,7 +1774,7 @@ git commit -m "test: cover EnPal V1 crash recovery matrix"
 - Manual/live acceptance against the actual configured ChatGPT Project + Google Workspace.
 - This task does not replace automated tests.
 
-- [ ] **Step 1: Create the exact live checklist**
+- [x] **Step 1: Create the exact live checklist**
 
 `tests/live/enpal-v1-e2e-checklist.md` must contain one checkbox for each approved acceptance gate:
 
@@ -1795,7 +1795,7 @@ git commit -m "test: cover EnPal V1 crash recovery matrix"
 15. rename failure does not block READY.
 16. no assistant-prose parsing used.
 
-- [ ] **Step 2: Add explicit evidence fields**
+- [x] **Step 2: Add explicit evidence fields**
 
 For each checklist item include:
 
@@ -1810,7 +1810,7 @@ Notes:
 
 This is test evidence, not product telemetry.
 
-- [ ] **Step 3: Add a package script that prints the live-test location**
+- [x] **Step 3: Add a package script that prints the live-test location**
 
 Modify `package.json`:
 
@@ -1835,7 +1835,7 @@ Expected: automated suites PASS; live command prints checklist instructions.
 
 Then execute the checklist in the actual EnPal Project. Any FAIL blocks V1 release.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add package.json tests/live

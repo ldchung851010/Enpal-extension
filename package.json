@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test 'tests/**/*.test.js'",
-    "test:unit": "node --test 'tests/unit/*.test.js'"
+    "test:unit": "node --test 'tests/unit/*.test.js'",
+    "test:integration": "node --test 'tests/integration/*.test.js'",
+    "test:live": "node -e \"console.log('Run tests/live/enpal-v1-e2e-checklist.md in the configured production-like Chrome profile')\""
   }
 }
