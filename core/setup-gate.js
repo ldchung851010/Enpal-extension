@@ -1,4 +1,4 @@
-import { loadRuntimeConfig } from './config.js';
+import { loadWorkspaceConfig } from './config.js';
 
 function validActiveBrief(brief) {
   return Boolean(
@@ -35,7 +35,7 @@ export function createSetupGate({
 
     async verify({ interactive = false } = {}) {
       try {
-        const config = loadRuntimeConfig(rawConfig);
+        const config = loadWorkspaceConfig(rawConfig, { allowDraft: false });
 
         const token = await authorizeGoogle(interactive);
         if (typeof token !== 'string' || token.trim() === '') {
