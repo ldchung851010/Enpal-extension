@@ -10,7 +10,8 @@
     "test:playwright:unit": "node --test tests/unit/playwright-chatgpt-page.test.js",
     "test:live": "node -e \"console.log('Run tests/live/enpal-v1-e2e-checklist.md in the configured production-like Chrome profile')\"",
     "pw:install": "npx playwright install chromium",
-    "pw:smoke:start": "node playwright/smoke-start.js"
+    "pw:smoke:start": "node playwright/smoke-start.js",
+    "pw:diagnose:composer": "node playwright/diagnose-composer.js"
   },
   "dependencies": {
     "playwright": "1.63.0"
