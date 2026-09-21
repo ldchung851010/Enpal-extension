@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test 'tests/**/*.test.js'",
-    "test:unit": "node --test 'tests/unit/*.test.js'",
-    "test:integration": "node --test 'tests/integration/*.test.js'",
+    "test": "node --test tests/**/*.test.js",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test:integration": "node --test tests/integration/*.test.js",
     "test:playwright:unit": "node --test tests/unit/playwright-chatgpt-page.test.js",
     "test:live": "node -e \"console.log('Run tests/live/enpal-v1-e2e-checklist.md in the configured production-like Chrome profile')\"",
     "pw:install": "npx playwright install chromium",
     "pw:smoke:start": "node playwright/smoke-start.js",
-    "pw:diagnose:composer": "node playwright/diagnose-composer.js"
+    "test:playwright:browser": "node --test tests/playwright/chatgpt-page.browser.test.js",
+    "test:playwright": "npm run test:playwright:unit && npm run test:playwright:browser"
   },
   "dependencies": {
     "playwright": "1.63.0"
