@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - rebuild/v2-multi-workspace
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
