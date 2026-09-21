@@ -1,0 +1,65 @@
+name: temp project-context verification
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  red-replay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v4
+        with:
+          ref: 03af260a96dfa90724fe932de117e159e93484a9
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Replay regression tests on parent
+        shell: bash
+        run: |
+          git diff 889eeec78856a224c9023759b0541d1225fc685c 03af260a96dfa90724fe932de117e159e93484a9 --             tests/helpers/fake-chatgpt-adapter.js             tests/integration/start-workflow.test.js             tests/unit/chatgpt-adapter.test.js             tests/unit/chatgpt-runtime.test.js > /tmp/project-context-tests.patch
+          git checkout --detach 889eeec78856a224c9023759b0541d1225fc685c
+          git apply /tmp/project-context-tests.patch
+          set +e
+          node --test             tests/integration/start-workflow.test.js             tests/unit/chatgpt-adapter.test.js             tests/unit/chatgpt-runtime.test.js             > /tmp/red.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/red.log
+          if [ "$status" -eq 0 ]; then
+            echo "RED replay unexpectedly passed on parent."
+            exit 1
+          fi
+          echo "RED confirmed: regression tests fail on parent with exit $status."
+
+  green-exact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact target SHA
+        uses: actions/checkout@v4
+        with:
+          ref: 03af260a96dfa90724fe932de117e159e93484a9
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Show exact SHA
+        run: git rev-parse HEAD
+      - name: Run focused Project-context tests
+        run: node --test tests/integration/start-workflow.test.js tests/unit/chatgpt-adapter.test.js tests/unit/chatgpt-runtime.test.js
+      - name: Run full test suite
+        run: npm test
+      - name: Package exact source
+        run: |
+          zip -r enpal-03af260a96dfa90724fe932de117e159e93484a9.zip . -x ".git/*"
+      - name: Upload exact source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: enpal-03af260a96dfa90724fe932de117e159e93484a9
+          path: enpal-03af260a96dfa90724fe932de117e159e93484a9.zip
+          if-no-files-found: error
