@@ -2,12 +2,25 @@
   "manifest_version": 3,
   "name": "EnPal",
   "version": "1.0.0",
-  "permissions": ["storage", "identity", "scripting", "sidePanel", "tabs", "debugger"],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqzU70t5OgxfFD6XXwpKYfArStpmqJmHG5kos07rXb/AHoRHF+OO06o/K4LlmE0vFJpH4iJjqQelcHi3M5IR9fmydtCXOzQcKVol+rzPf/mZvi7WWG5ono7ojZzvU4FjWdE9vUZYzBOf/4YivAGCgJYPRNIvKNDEwf1pshUBro9pnvwm4xTOlaeHXjnKeP47z12NK9mdFDwAsn8aq5e1B/9s4vJl6kJkEydSNIWylu3neb+eiDIiiJHDWgAwYqi3h44jwm6iWHjBE8n/zgCf7QOYPeytU+OT6X4ZXuwJHdNBPGf4eMeoua/WyQRL1+PiH7n5SGfVpO/GiM7e2DVdq8QIDAQAB",
+  "permissions": [
+    "storage",
+    "identity",
+    "scripting",
+    "sidePanel",
+    "tabs",
+    "debugger"
+  ],
   "host_permissions": [
     "https://chatgpt.com/*",
-    "https://sheets.googleapis.com/*",
-    "https://www.googleapis.com/*"
+    "https://sheets.googleapis.com/*"
   ],
+  "oauth2": {
+    "client_id": "75024264025-jfk5jl6gip980b1fubg5jvmsnsdbqcf5.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/spreadsheets"
+    ]
+  },
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
