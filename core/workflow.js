@@ -286,6 +286,8 @@ export function createWorkflow(deps) {
     await journal.write({
       sessionId: session.session_id,
       chatUrl: boundSession.chat_url,
+      activeTabId: tabId,
+      pendingTabId: null,
       status: 'IN_PROGRESS',
       phase: 'LEARNING_ACTIVE',
       learningReady: true
@@ -336,15 +338,7 @@ export function createWorkflow(deps) {
     await verifyBrief(brief, session);
 
     if (session.chat_url) {
-      const tabId = await chatgpt.openConversation(session.chat_url);
-      const actualUrl = await chatgpt.getConversationUrl(tabId);
-      if (normalizeUrl(actualUrl) !== normalizeUrl(session.chat_url)) {
-        throw new EnpalError(
-          ERROR_CODES.WRONG_CHAT,
-          'Recovered STARTING Session opened the wrong ChatGPT conversation',
-          true
-        );
-      }
+      const tabId = await openBoundConversation(session);
 
       const result = await finishLearningStart({
         tabId,
@@ -403,15 +397,7 @@ export function createWorkflow(deps) {
   async function resumePaused(session, brief) {
     await verifyBrief(brief, session);
 
-    const tabId = await chatgpt.openConversation(session.chat_url);
-    const actualUrl = await chatgpt.getConversationUrl(tabId);
-    if (normalizeUrl(actualUrl) !== normalizeUrl(session.chat_url)) {
-      throw new EnpalError(
-        ERROR_CODES.WRONG_CHAT,
-        'Opened ChatGPT conversation does not match active Session chat_url',
-        true
-      );
-    }
+    const tabId = await openBoundConversation(session);
 
     const result = await finishLearningStart({
       tabId,
@@ -497,15 +483,7 @@ export function createWorkflow(deps) {
       );
     }
 
-    const tabId = await chatgpt.openConversation(session.chat_url);
-    const actualUrl = await chatgpt.getConversationUrl(tabId);
-    if (normalizeUrl(actualUrl) !== normalizeUrl(session.chat_url)) {
-      throw new EnpalError(
-        ERROR_CODES.WRONG_CHAT,
-        'Opened ChatGPT conversation does not match active Session chat_url',
-        true
-      );
-    }
+    const tabId = await openBoundConversation(session);
 
     await chatgpt.stopVoice(tabId);
     await supervisor.stop();
@@ -560,6 +538,28 @@ export function createWorkflow(deps) {
       );
     }
 
+    const recoveryState = await journal.read?.() ?? {};
+    const candidateTabId = Number.isInteger(recoveryState.activeTabId)
+      ? recoveryState.activeTabId
+      : (
+          Number.isInteger(recoveryState.pendingTabId)
+            ? recoveryState.pendingTabId
+            : null
+        );
+
+    if (candidateTabId !== null) {
+      try {
+        const candidateUrl = await chatgpt.getConversationUrl(candidateTabId);
+        if (normalizeUrl(candidateUrl) === normalizeUrl(session.chat_url)) {
+          await chatgpt.focusTab?.(candidateTabId);
+          await journal.write?.({ activeTabId: candidateTabId });
+          return candidateTabId;
+        }
+      } catch {
+        // Fall through and reopen the exact authoritative URL.
+      }
+    }
+
     const tabId = await chatgpt.openConversation(session.chat_url);
     const actualUrl = await chatgpt.getConversationUrl(tabId);
     if (normalizeUrl(actualUrl) !== normalizeUrl(session.chat_url)) {
@@ -569,6 +569,8 @@ export function createWorkflow(deps) {
         true
       );
     }
+
+    await journal.write?.({ activeTabId: tabId });
     return tabId;
   }
 
