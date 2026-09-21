@@ -1,8 +1,9 @@
 name: temp rebuild task1 red
 
 on:
-  pull_request:
-    branches: [main]
+  push:
+    branches:
+      - temp/rebuild-task1-red-ci
 
 permissions:
   contents: read
