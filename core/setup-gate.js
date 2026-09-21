@@ -42,7 +42,7 @@ export function createSetupGate({
           throw new Error('Google authorization unavailable');
         }
 
-        const sheetAccess = await verifySheetsAccess({ config, token });
+        const sheetAccess = await verifySheetsAccess({ config, token, interactive });
         if (sheetAccess?.read !== true || sheetAccess?.write !== true) {
           throw new Error('Required Sheets read/write access is not verified');
         }
