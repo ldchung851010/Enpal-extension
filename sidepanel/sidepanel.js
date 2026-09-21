@@ -29,13 +29,18 @@ function learnerStateFromResult(action, result) {
 export function createSidePanelController({ workflow, documentRef = document }) {
   let currentState = 'SETUP_REQUIRED';
   let recoverable = false;
+  let diagnostic = '';
 
   function render() {
     const view = getSidePanelView(currentState, recoverable);
     documentRef.documentElement.dataset.enpalState = view.state;
 
     const status = documentRef.getElementById('status');
-    if (status) status.textContent = view.message;
+    if (status) {
+      status.textContent = diagnostic
+        ? view.message + ' ' + diagnostic
+        : view.message;
+    }
 
     const allowed = new Set(view.actions);
     for (const [action, id] of Object.entries(ACTION_BUTTONS)) {
@@ -47,15 +52,17 @@ export function createSidePanelController({ workflow, documentRef = document }) 
     }
   }
 
-  function applyFailure(error) {
-    currentState = 'ERROR';
-    recoverable = error?.recoverable === true;
+  function applyFailure(error, action = null) {
+    currentState = action === 'SETUP' ? 'SETUP_REQUIRED' : 'ERROR';
+    recoverable = action === 'SETUP' ? false : error?.recoverable === true;
+    diagnostic = error?.message || 'Unknown error';
     render();
   }
 
   function applyResult(action, result) {
     currentState = learnerStateFromResult(action, result);
     recoverable = false;
+    diagnostic = typeof result?.reason === 'string' ? result.reason : '';
     render();
   }
 
@@ -87,7 +94,7 @@ export function createSidePanelController({ workflow, documentRef = document }) 
 
       applyResult(action, result);
     } catch (error) {
-      applyFailure(error);
+      applyFailure(error, action);
     }
   }
 
@@ -98,6 +105,7 @@ export function createSidePanelController({ workflow, documentRef = document }) 
         ? result.state
         : learnerStateFromResult('RETRY', result);
       recoverable = false;
+      diagnostic = typeof result?.reason === 'string' ? result.reason : '';
       render();
       return result;
     } catch (error) {

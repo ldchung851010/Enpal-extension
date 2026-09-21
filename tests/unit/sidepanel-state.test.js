@@ -189,3 +189,50 @@ test('real Side Panel HTML contains the Project access confirmation button', () 
   assert.match(html, /id="confirm-platform-action"/);
   assert.match(html, /Confirm Project access verified/);
 });
+
+
+test('setup failure shows the concrete reason and keeps Verify setup available', async () => {
+  const workflow = {
+    async recover() {
+      const error = new Error('Sessions sheet missing required status column');
+      error.recoverable = false;
+      throw error;
+    },
+    async start() {},
+    async pause() {},
+    async end() {}
+  };
+  const fakeDocument = makeFakeDocument();
+  const controller = createSidePanelController({ workflow, documentRef: fakeDocument });
+
+  await controller.invoke('SETUP');
+
+  assert.equal(fakeDocument.documentElement.dataset.enpalState, 'SETUP_REQUIRED');
+  assert.match(
+    fakeDocument.elements.status.textContent,
+    /Sessions sheet missing required status column/
+  );
+  assert.equal(fakeDocument.elements['setup-action'].hidden, false);
+});
+
+test('setup result reason is rendered instead of a generic dead-end message', async () => {
+  const workflow = {
+    async recover() {
+      return {
+        state: 'SETUP_REQUIRED',
+        reason: 'Google authorization unavailable'
+      };
+    },
+    async start() {},
+    async pause() {},
+    async end() {}
+  };
+  const fakeDocument = makeFakeDocument();
+  const controller = createSidePanelController({ workflow, documentRef: fakeDocument });
+
+  await controller.invoke('SETUP');
+
+  assert.equal(fakeDocument.documentElement.dataset.enpalState, 'SETUP_REQUIRED');
+  assert.match(fakeDocument.elements.status.textContent, /Google authorization unavailable/);
+  assert.equal(fakeDocument.elements['setup-action'].hidden, false);
+});
