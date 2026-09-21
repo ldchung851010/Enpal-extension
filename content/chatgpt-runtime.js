@@ -5,6 +5,12 @@
       '[contenteditable="true"][data-lexical-editor="true"]',
       'textarea[placeholder*="Message"]'
     ]),
+    sendControl: Object.freeze([
+      'button[data-testid="send-button"]',
+      'button[aria-label="Send prompt"]',
+      'button[aria-label="Send message"]',
+      'button[aria-label^="Send"]'
+    ]),
     generating: Object.freeze([
       'button[data-testid="stop-button"]',
       'button[aria-label="Stop generating"]',
@@ -193,6 +199,47 @@
     return { ok: true, focused: true, controlTurns: countControlTurns() };
   }
 
+  function isEnabledControl(element) {
+    return Boolean(element) &&
+      element.disabled !== true &&
+      element.getAttribute?.('disabled') == null &&
+      element.getAttribute?.('aria-disabled') !== 'true';
+  }
+
+  function findSendControl() {
+    const composer = first('composer');
+    const scopedRoot = composer?.closest?.('form');
+    const roots = scopedRoot ? [scopedRoot, document] : [document];
+
+    for (const root of roots) {
+      for (const selector of SELECTORS.sendControl) {
+        const control = root.querySelector?.(selector);
+        if (isEnabledControl(control)) return control;
+      }
+    }
+    return null;
+  }
+
+  async function focusSendControl({ timeoutMs = 5_000, pollMs = 50 } = {}) {
+    const timeout = Math.max(0, Number(timeoutMs) || 0);
+    const poll = Math.max(1, Number(pollMs) || 1);
+    let elapsed = 0;
+
+    while (elapsed <= timeout) {
+      const control = findSendControl();
+      if (control) {
+        control.focus?.();
+        return { ok: true, focused: true };
+      }
+      if (elapsed >= timeout) break;
+      const waitMs = Math.min(poll, timeout - elapsed);
+      await sleep(waitMs);
+      elapsed += waitMs;
+    }
+
+    return failure('ChatGPT Send control did not become enabled');
+  }
+
   async function waitForControlSubmitted(
     previousControlTurns,
     { timeoutMs = 10_000, pollMs = 100 } = {}
@@ -365,6 +412,11 @@
         return createConversation();
       case 'FOCUS_COMPOSER':
         return focusComposer();
+      case 'FOCUS_SEND_CONTROL':
+        return focusSendControl({
+          timeoutMs: message.timeoutMs,
+          pollMs: message.pollMs
+        });
       case 'WAIT_CONTROL_SUBMITTED':
         return waitForControlSubmitted(message.previousControlTurns, {
           timeoutMs: message.timeoutMs,
@@ -412,6 +464,7 @@
     waitForConversationUrl,
     waitForControlSubmitted,
     focusComposer,
+    focusSendControl,
     createConversation,
     waitUntilIdle,
     getConversationUrl,

@@ -66,7 +66,9 @@ test('sendControl focuses the composer then uses trusted browser input instead o
   const h = makeChrome({
     FOCUS_COMPOSER: { ok: true, focused: true, controlTurns: 0 },
     WAIT_CONTROL_SUBMITTED: { ok: true, submitted: true, controlTurns: 1 },
-    ENPAL_TRUSTED_SEND: { ok: true, sent: true }
+    ENPAL_TRUSTED_INSERT: { ok: true, inserted: true },
+    FOCUS_SEND_CONTROL: { ok: true, focused: true },
+    ENPAL_TRUSTED_ACTIVATE: { ok: true }
   });
   const adapter = createChatGptAdapter(h.chromeApi);
   const control = 'ENPAL_CONTROL\ntype=START\nEND_ENPAL_CONTROL';
@@ -80,7 +82,16 @@ test('sendControl focuses the composer then uses trusted browser input instead o
     },
     {
       kind: 'runtime.sendMessage',
-      message: { type: 'ENPAL_TRUSTED_SEND', tabId: 7, text: control }
+      message: { type: 'ENPAL_TRUSTED_INSERT', tabId: 7, text: control }
+    },
+    {
+      kind: 'tabs.sendMessage',
+      tabId: 7,
+      message: { target: 'ENPAL_CHATGPT', action: 'FOCUS_SEND_CONTROL' }
+    },
+    {
+      kind: 'runtime.sendMessage',
+      message: { type: 'ENPAL_TRUSTED_ACTIVATE', tabId: 7 }
     },
     {
       kind: 'tabs.sendMessage',
@@ -106,7 +117,9 @@ test('adapter sends named ENPAL_CHATGPT messages without exposing selectors', as
     CREATE_CONVERSATION: { ok: true, ready: true },
     FOCUS_COMPOSER: { ok: true, focused: true, controlTurns: 0 },
     WAIT_CONTROL_SUBMITTED: { ok: true, submitted: true, controlTurns: 1 },
-    ENPAL_TRUSTED_SEND: { ok: true, sent: true },
+    ENPAL_TRUSTED_INSERT: { ok: true, inserted: true },
+    FOCUS_SEND_CONTROL: { ok: true, focused: true },
+    ENPAL_TRUSTED_ACTIVATE: { ok: true },
     WAIT_IDLE: { ok: true, idle: true },
     GET_CONVERSATION_URL: { ok: true, url: 'https://chatgpt.com/g/g-p-enpal/c/abc' },
     GET_REALTIME_FEED: { ok: true, turns: [] }
@@ -125,6 +138,7 @@ test('adapter sends named ENPAL_CHATGPT messages without exposing selectors', as
     [
       { target: 'ENPAL_CHATGPT', action: 'CREATE_CONVERSATION' },
       { target: 'ENPAL_CHATGPT', action: 'FOCUS_COMPOSER' },
+      { target: 'ENPAL_CHATGPT', action: 'FOCUS_SEND_CONTROL' },
       { target: 'ENPAL_CHATGPT', action: 'WAIT_CONTROL_SUBMITTED', previousControlTurns: 0 },
       { target: 'ENPAL_CHATGPT', action: 'WAIT_IDLE' },
       { target: 'ENPAL_CHATGPT', action: 'GET_CONVERSATION_URL' },

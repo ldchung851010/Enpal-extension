@@ -30,12 +30,11 @@ export async function activateFocusedControlWithDebugger(chromeApi, tabId) {
   });
 }
 
-export async function typeAndSubmitWithDebugger(chromeApi, tabId, text) {
+export async function insertTextWithDebugger(chromeApi, tabId, text) {
   return withDebugger(chromeApi, tabId, async (target) => {
     await chromeApi.debugger.sendCommand(target, 'Input.insertText', {
       text: String(text ?? '')
     });
-    await pressEnter(chromeApi, target);
-    return { ok: true, sent: true };
+    return { ok: true, inserted: true };
   });
 }

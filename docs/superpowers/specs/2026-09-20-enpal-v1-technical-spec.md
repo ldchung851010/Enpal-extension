@@ -556,7 +556,7 @@ For a new session:
 6. Open the configured ChatGPT Project in an EnPal-owned tab and record its `tab_id`.
 7. Create a new conversation.
 8. For protected Listening, arm the Listening Mask before any control message can expose protected content.
-9. Send required teaching-context links/instructions through trusted browser input and confirm a new user `ENPAL_CONTROL` turn exists.
+9. Send required teaching-context links/instructions through a two-step trusted browser path: focus the composer and insert the exact control text, wait for the semantic Send control to become enabled, focus that Send control, activate it with trusted browser input, then confirm a new user `ENPAL_CONTROL` turn exists. EnPal must not treat text merely appearing in the composer as submission.
 10. Wait for and capture the exact conversation URL inside the configured Project; a global or different-Project conversation must fail closed.
 11. Persist `session_id + chat_url` durably and verify.
 12. Mark the Session `IN_PROGRESS`.

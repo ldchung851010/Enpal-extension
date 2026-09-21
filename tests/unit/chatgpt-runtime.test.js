@@ -184,6 +184,24 @@ test('FOCUS_COMPOSER focuses the semantic ChatGPT composer without writing text'
   assert.equal(page.composer.value, '');
 });
 
+
+test('FOCUS_SEND_CONTROL waits for an enabled semantic Send button and focuses it', async () => {
+  const page = loadRuntime();
+  page.send.disabled = false;
+  const result = await page.dispatch({ target: 'ENPAL_CHATGPT', action: 'FOCUS_SEND_CONTROL' });
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), { ok: true, focused: true });
+  assert.equal(page.send.focuses, 1);
+});
+
+test('FOCUS_SEND_CONTROL refuses a disabled Send button instead of pretending submit is possible', async () => {
+  const page = loadRuntime();
+  page.send.disabled = true;
+  const result = await page.context.EnPalChatGptRuntime.focusSendControl({ timeoutMs: 0, pollMs: 1 });
+  assert.equal(result.ok, false);
+  assert.match(result.message, /Send control/i);
+  assert.equal(page.send.focuses, 0);
+});
+
 test('WAIT_CONVERSATION_URL waits for a conversation inside the configured Project', async () => {
   const page = loadRuntime({ href: 'https://chatgpt.com/g/g-p-enpal/project' });
   setTimeout(() => {

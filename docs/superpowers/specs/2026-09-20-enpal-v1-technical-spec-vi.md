@@ -556,7 +556,7 @@ Với new session:
 6. Mở configured ChatGPT Project trong một EnPal-owned tab và ghi `tab_id`.
 7. Tạo conversation mới.
 8. Với protected Listening, arm Listening Mask trước khi bất kỳ control message nào có thể làm lộ protected content.
-9. Gửi required teaching-context link/instruction bằng trusted browser input và xác nhận đã xuất hiện user turn `ENPAL_CONTROL` mới.
+9. Gửi required teaching-context link/instruction qua trusted browser path hai bước: focus composer và insert chính xác control text, chờ semantic Send control trở thành enabled, focus Send control đó, activate bằng trusted browser input, rồi xác nhận đã xuất hiện user turn `ENPAL_CONTROL` mới. EnPal không được coi việc text chỉ xuất hiện trong composer là đã submit.
 10. Chờ và capture exact conversation URL nằm trong đúng configured Project; chat global hoặc chat của Project khác phải fail closed.
 11. Persist `session_id + chat_url` một cách bền vững và verify.
 12. Mark Session thành `IN_PROGRESS`.

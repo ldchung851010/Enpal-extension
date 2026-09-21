@@ -99,19 +99,18 @@ test('ENPAL_TRUSTED_ACTIVATE remains a short privileged debugger route', async (
 });
 
 
-test('ENPAL_TRUSTED_SEND types and submits through the short debugger route', async () => {
+test('ENPAL_TRUSTED_INSERT types text without submitting through the debugger route', async () => {
   const { fake } = await loadWorker();
   const listener = fake.messageListeners[0];
   const text = 'ENPAL_CONTROL\ntype=START';
   const response = await new Promise((resolve) => {
-    assert.equal(listener({ type: 'ENPAL_TRUSTED_SEND', tabId: 31, text }, {}, resolve), true);
+    assert.equal(listener({ type: 'ENPAL_TRUSTED_INSERT', tabId: 31, text }, {}, resolve), true);
   });
-  assert.deepEqual(response, { ok: true, sent: true });
+  assert.deepEqual(response, { ok: true, inserted: true });
   const commands = fake.debuggerCalls.filter(call => call.kind === 'command');
+  assert.equal(commands.length, 1);
   assert.equal(commands[0].method, 'Input.insertText');
   assert.equal(commands[0].params.text, text);
-  assert.equal(commands[1].method, 'Input.dispatchKeyEvent');
-  assert.equal(commands[2].method, 'Input.dispatchKeyEvent');
 });
 
 test('service worker does not own START PAUSE END workflow messages or pipeline state', async () => {

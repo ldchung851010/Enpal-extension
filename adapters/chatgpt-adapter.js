@@ -137,18 +137,32 @@ export function createChatGptAdapter(chromeApi = chrome, {
       }
       const focus = await sendToTab(tabId, 'FOCUS_COMPOSER');
       const previousControlTurns = Math.max(0, Number(focus.controlTurns) || 0);
-      const result = await chromeApi.runtime.sendMessage({
-        type: 'ENPAL_TRUSTED_SEND',
+      const insertion = await chromeApi.runtime.sendMessage({
+        type: 'ENPAL_TRUSTED_INSERT',
         tabId,
         text: controlText
       });
-      if (result?.ok !== true) {
+      if (insertion?.ok !== true) {
         throw new EnpalError(
           ERROR_CODES.CHAT_UI_UNAVAILABLE,
-          result?.error || 'Trusted ChatGPT send failed',
+          insertion?.error || 'Trusted ChatGPT text insertion failed',
           true
         );
       }
+
+      await sendToTab(tabId, 'FOCUS_SEND_CONTROL');
+      const activation = await chromeApi.runtime.sendMessage({
+        type: 'ENPAL_TRUSTED_ACTIVATE',
+        tabId
+      });
+      if (activation?.ok !== true) {
+        throw new EnpalError(
+          ERROR_CODES.CHAT_UI_UNAVAILABLE,
+          activation?.error || 'Trusted ChatGPT Send activation failed',
+          true
+        );
+      }
+
       await sendToTab(tabId, 'WAIT_CONTROL_SUBMITTED', { previousControlTurns });
       return { ok: true, sent: true };
     },
