@@ -306,6 +306,7 @@ export function createWorkflow(deps) {
 
     const tabId = await chatgpt.openProject(config.projectUrl);
     await journal.write({ pendingTabId: tabId });
+    await chatgpt.waitForProjectReady(tabId, config.projectUrl);
     await chatgpt.createConversation(tabId);
 
     const result = await finishLearningStart({
@@ -378,6 +379,7 @@ export function createWorkflow(deps) {
       pendingTabId: tabId,
       phase: 'SESSION_STUB_CREATED'
     });
+    await chatgpt.waitForProjectReady(tabId, config.projectUrl);
     await chatgpt.createConversation(tabId);
 
     const result = await finishLearningStart({

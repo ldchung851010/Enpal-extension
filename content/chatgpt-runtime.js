@@ -66,6 +66,55 @@
     return null;
   }
 
+  function isExactProjectRoot(currentUrl, projectUrl) {
+    try {
+      const current = new URL(currentUrl);
+      const project = new URL(projectUrl);
+      const currentPath = current.pathname.replace(/\/+$/, '');
+      const projectPath = project.pathname.replace(/\/+$/, '');
+      return current.origin === project.origin && currentPath === projectPath;
+    } catch {
+      return false;
+    }
+  }
+
+  async function waitForProjectReady(
+    projectUrl,
+    { timeoutMs = 20_000, pollMs = 100, stabilityMs = 1_000 } = {}
+  ) {
+    let elapsed = 0;
+    const timeout = Math.max(0, Number(timeoutMs) || 0);
+    const poll = Math.max(1, Number(pollMs) || 1);
+    const stability = Math.max(0, Number(stabilityMs) || 0);
+
+    while (elapsed <= timeout) {
+      const projectRootReady = isExactProjectRoot(location.href, projectUrl);
+      const composerReady = Boolean(first('composer'));
+
+      if (projectRootReady && composerReady) {
+        if (stability > 0) {
+          if (elapsed + stability > timeout) break;
+          await sleep(stability);
+          elapsed += stability;
+        }
+
+        if (
+          isExactProjectRoot(location.href, projectUrl) &&
+          Boolean(first('composer'))
+        ) {
+          return { ok: true, projectReady: true, url: location.href };
+        }
+      }
+
+      if (elapsed >= timeout) break;
+      const waitMs = Math.min(poll, timeout - elapsed);
+      await sleep(waitMs);
+      elapsed += waitMs;
+    }
+
+    return failure('Configured ChatGPT Project context did not become ready');
+  }
+
   function failure(message = 'Required ChatGPT UI is unavailable') {
     return { ok: false, code: 'CHAT_UI_UNAVAILABLE', message };
   }
@@ -226,6 +275,12 @@
 
   async function handleMessage(message) {
     switch (message?.action) {
+      case 'WAIT_PROJECT_READY':
+        return waitForProjectReady(message.projectUrl, {
+          timeoutMs: message.timeoutMs,
+          pollMs: message.pollMs,
+          stabilityMs: message.stabilityMs
+        });
       case 'CREATE_CONVERSATION':
         return createConversation();
       case 'SEND_CONTROL':
@@ -258,6 +313,7 @@
   });
 
   globalThis.EnPalChatGptRuntime = Object.freeze({
+    waitForProjectReady,
     createConversation,
     sendControl,
     waitUntilIdle,

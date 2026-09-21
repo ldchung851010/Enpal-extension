@@ -119,6 +119,10 @@ export function createChatGptAdapter(chromeApi = chrome, {
       return openTab(projectUrl);
     },
 
+    async waitForProjectReady(tabId, projectUrl) {
+      return sendToTab(tabId, 'WAIT_PROJECT_READY', { projectUrl });
+    },
+
     async createConversation(tabId) {
       return sendToTab(tabId, 'CREATE_CONVERSATION');
     },

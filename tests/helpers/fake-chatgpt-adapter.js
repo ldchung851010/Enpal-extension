@@ -2,6 +2,7 @@ export function makeFakeChatGptAdapter(overrides = {}, { events } = {}) {
   const calls = [];
   const defaults = {
     openProject: 101,
+    waitForProjectReady: { ok: true, projectReady: true },
     createConversation: { ok: true, ready: true },
     openConversation: 102,
     sendControl: { ok: true, sent: true },
@@ -28,6 +29,7 @@ export function makeFakeChatGptAdapter(overrides = {}, { events } = {}) {
   return {
     calls,
     openProject: method('openProject'),
+    waitForProjectReady: method('waitForProjectReady'),
     createConversation: method('createConversation'),
     openConversation: method('openConversation'),
     sendControl: method('sendControl'),
@@ -79,6 +81,11 @@ export function makeCrashRecoveryChatGptAdapter({
       const tabId = nextTabId++;
       tabUrls.set(tabId, url);
       return tabId;
+    },
+
+    async waitForProjectReady(tabId, projectUrl) {
+      record('waitForProjectReady', [tabId, projectUrl]);
+      return { ok: true, projectReady: true };
     },
 
     async createConversation(tabId) {

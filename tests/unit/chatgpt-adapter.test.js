@@ -40,6 +40,27 @@ test('openProject opens the exact configured Project URL in a new active tab', a
   });
 });
 
+test('waitForProjectReady delegates the configured Project root to the ChatGPT runtime', async () => {
+  const h = makeChrome({
+    WAIT_PROJECT_READY: { ok: true, projectReady: true }
+  });
+  const adapter = createChatGptAdapter(h.chromeApi);
+
+  assert.deepEqual(
+    await adapter.waitForProjectReady(7, 'https://chatgpt.com/g/g-p-enpal'),
+    { ok: true, projectReady: true }
+  );
+  assert.deepEqual(h.calls[0], {
+    kind: 'tabs.sendMessage',
+    tabId: 7,
+    message: {
+      target: 'ENPAL_CHATGPT',
+      action: 'WAIT_PROJECT_READY',
+      projectUrl: 'https://chatgpt.com/g/g-p-enpal'
+    }
+  });
+});
+
 test('adapter sends named ENPAL_CHATGPT messages without exposing selectors', async () => {
   const h = makeChrome({
     CREATE_CONVERSATION: { ok: true, ready: true },

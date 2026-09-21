@@ -102,6 +102,7 @@ test('new START follows durable ordering and never starts Voice before chat bind
     'journal.write',
     'chatgpt.openProject',
     'journal.write',
+    'chatgpt.waitForProjectReady',
     'chatgpt.createConversation',
     'mask.arm',
     'chatgpt.sendControl',
@@ -116,6 +117,27 @@ test('new START follows durable ordering and never starts Voice before chat bind
   assert.deepEqual(events, ordered);
   assert.equal(repos.journalState.learningReady, true);
   assert.equal(repos.journalState.phase, 'LEARNING_ACTIVE');
+});
+
+test('START waits for stable configured Project context before creating the conversation', async () => {
+  const { deps } = makeDeps({
+    chatOverrides: {
+      openProject: 41,
+      waitForProjectReady: async (tabId, projectUrl) => {
+        assert.equal(tabId, 41);
+        assert.equal(projectUrl, PROJECT_URL);
+        return { ok: true, projectReady: true };
+      },
+      getConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1'
+    }
+  });
+
+  await createWorkflow(deps).start();
+
+  const names = deps.chatgpt.calls.map(call => call.name);
+  assert.ok(names.indexOf('waitForProjectReady') >= 0);
+  assert.ok(names.indexOf('waitForProjectReady') < names.indexOf('createConversation'));
+  assert.ok(names.indexOf('createConversation') < names.indexOf('sendControl'));
 });
 
 test('START sends approved Teacher Role, correct Method, and ACTIVE Brief in ENPAL_CONTROL', async () => {

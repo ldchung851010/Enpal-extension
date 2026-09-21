@@ -55,9 +55,10 @@ function loadRuntime({ href = 'https://chatgpt.com/g/g-p-enpal', generating = fa
   const EventClass = class {
     constructor(type, init = {}) { this.type = type; Object.assign(this, init); }
   };
+  const location = { href };
   const context = loadClassicScript(path.join(ROOT, 'content/chatgpt-runtime.js'), {
     document,
-    location: { href },
+    location,
     chrome,
     Event: EventClass,
     InputEvent: EventClass,
@@ -76,7 +77,7 @@ function loadRuntime({ href = 'https://chatgpt.com/g/g-p-enpal', generating = fa
     });
   }
 
-  return { context, composer, send, voice, dispatch };
+  return { context, composer, send, voice, location, dispatch };
 }
 
 test('SEND_CONTROL writes the composer and clicks Send', async () => {
@@ -102,6 +103,44 @@ test('runtime returns structured URL and idle state without assistant prose', as
   assert.equal(idle.ok, true);
   assert.equal(idle.idle, true);
   assert.equal('assistantText' in idle, false);
+});
+
+test('WAIT_PROJECT_READY accepts only the configured Project root after a stable composer check', async () => {
+  const page = loadRuntime({ href: 'https://chatgpt.com/g/g-p-enpal' });
+  const result = await page.context.EnPalChatGptRuntime.waitForProjectReady(
+    'https://chatgpt.com/g/g-p-enpal',
+    { timeoutMs: 1, pollMs: 1, stabilityMs: 0 }
+  );
+  assert.deepEqual(JSON.parse(JSON.stringify(result)), {
+    ok: true,
+    projectReady: true,
+    url: 'https://chatgpt.com/g/g-p-enpal'
+  });
+});
+
+test('WAIT_PROJECT_READY rejects a global chat even when the composer is already visible', async () => {
+  const page = loadRuntime({ href: 'https://chatgpt.com/c/outside-project' });
+  const result = await page.context.EnPalChatGptRuntime.waitForProjectReady(
+    'https://chatgpt.com/g/g-p-enpal',
+    { timeoutMs: 0, pollMs: 1, stabilityMs: 0 }
+  );
+  assert.equal(result.ok, false);
+  assert.match(result.message, /Project context/i);
+});
+
+test('WAIT_PROJECT_READY fails if the page leaves the Project during the stability window', async () => {
+  const page = loadRuntime({ href: 'https://chatgpt.com/g/g-p-enpal' });
+  setTimeout(() => {
+    page.location.href = 'https://chatgpt.com/c/outside-project';
+  }, 1);
+
+  const result = await page.context.EnPalChatGptRuntime.waitForProjectReady(
+    'https://chatgpt.com/g/g-p-enpal',
+    { timeoutMs: 10, pollMs: 1, stabilityMs: 5 }
+  );
+
+  assert.equal(result.ok, false);
+  assert.match(result.message, /Project context/i);
 });
 
 test('CREATE_CONVERSATION confirms project composer readiness without inventing a chat URL', async () => {
