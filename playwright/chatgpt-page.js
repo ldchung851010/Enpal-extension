@@ -141,21 +141,27 @@ async function composerText(composer) {
   }).catch(() => '');
 }
 
-async function fillComposer(page, composer, message) {
-  await composer.fill(message);
-  let actual = await composerText(composer);
-  if (cleanText(actual) === cleanText(message)) return;
-
-  // Fallback for editor variants where fill() does not update ProseMirror state.
+async function typeComposerWithKeyboard(page, composer, message) {
   await composer.focus();
   await page.keyboard.press('ControlOrMeta+A');
   await page.keyboard.press('Backspace');
   await page.keyboard.insertText(message);
-  actual = await composerText(composer);
 
+  const actual = await composerText(composer);
   if (cleanText(actual) !== cleanText(message)) {
     throw new Error('ChatGPT composer did not retain the intended message');
   }
+}
+
+async function fillComposer(page, composer, message) {
+  await composer.fill(message);
+
+  const actual = await composerText(composer);
+  if (cleanText(actual) === cleanText(message)) return 'FILL';
+
+  // Fallback for editor variants where fill() does not update the editor.
+  await typeComposerWithKeyboard(page, composer, message);
+  return 'KEYBOARD';
 }
 
 async function enabledSendControl(page) {
@@ -329,9 +335,22 @@ export function createChatGptPage(page, {
       if (!composer) throw new Error('ChatGPT composer is unavailable');
 
       const beforeTurns = await userTurns(page);
-      await fillComposer(page, composer, message);
+      const inputMethod = await fillComposer(page, composer, message);
 
-      const send = await waitForEnabledSend(page, submitTimeoutMs, sleep);
+      // If fill() made text visible but ChatGPT's editor state did not enable
+      // Send, re-enter the same text once through keyboard events. This happens
+      // before any submit attempt, so it cannot create a duplicate user turn.
+      let send = await waitForEnabledSend(
+        page,
+        Math.min(1_500, submitTimeoutMs),
+        sleep
+      );
+
+      if (!send && inputMethod === 'FILL') {
+        await typeComposerWithKeyboard(page, composer, message);
+        send = await waitForEnabledSend(page, submitTimeoutMs, sleep);
+      }
+
       if (!send) {
         throw new Error(
           'ChatGPT Send control did not become enabled after composer input'
