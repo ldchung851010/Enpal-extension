@@ -24,6 +24,7 @@ export async function launchEnpalBrowser({
     browser: null,
     page,
     userDataDir,
+
     async close() {
       await context.close();
     }
@@ -33,17 +34,32 @@ export async function launchEnpalBrowser({
 export async function attachToChrome({
   endpoint = 'http://127.0.0.1:9222'
 } = {}) {
-  const browser = await chromium.connectOverCDP(endpoint);
+  let browser;
+
+  try {
+    browser = await chromium.connectOverCDP(endpoint);
+  } catch (error) {
+    const message = String(error?.message || error);
+
+    throw new Error(
+      `Could not connect to Chrome at ${endpoint}. ` +
+      'Start the dedicated EnPal Chrome with remote debugging enabled. ' +
+      `Original error: ${message}`
+    );
+  }
+
   const contexts = browser.contexts();
   const context = contexts[0];
 
   if (!context) {
     await browser.close().catch(() => {});
-    throw new Error('Connected to Chrome but no browser context was available');
+    throw new Error(
+      'Connected to Chrome but no browser context was available'
+    );
   }
 
-  // Use a fresh tab inside the already-authenticated Chrome context. This
-  // avoids mutating an unrelated ChatGPT tab the learner may already have open.
+  // Work in a fresh tab inside the already-authenticated default context.
+  // This inherits the user's ChatGPT login without mutating an unrelated tab.
   const page = await context.newPage();
 
   return {
@@ -52,9 +68,13 @@ export async function attachToChrome({
     context,
     page,
     endpoint,
+
     async close() {
-      // This Chrome process belongs to the user. Ending the Node process
-      // disconnects Playwright; do not close the externally launched browser.
+      await page.close().catch(() => {});
+
+      // For a browser obtained via connectOverCDP(), browser.close()
+      // disconnects Playwright from the externally owned Chrome process.
+      await browser.close();
     }
   };
 }
