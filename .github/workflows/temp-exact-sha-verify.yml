@@ -8,7 +8,36 @@ permissions:
   contents: read
 
 jobs:
-  verify:
+  red-replay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v4
+        with:
+          ref: 889eeec78856a224c9023759b0541d1225fc685c
+          fetch-depth: 0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Replay new regression tests on parent
+        shell: bash
+        run: |
+          git diff e1d0ecb1f44d785f1d3f62c53f678fcdb727b243 889eeec78856a224c9023759b0541d1225fc685c --             tests/unit/workspace-registry.test.js             tests/unit/workspace-manager.test.js             tests/unit/sidepanel-bootstrap.test.js > /tmp/draft-tests.patch
+          git checkout --detach e1d0ecb1f44d785f1d3f62c53f678fcdb727b243
+          git apply /tmp/draft-tests.patch
+          set +e
+          node --test             tests/unit/workspace-registry.test.js             tests/unit/workspace-manager.test.js             tests/unit/sidepanel-bootstrap.test.js             > /tmp/red.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/red.log
+          if [ "$status" -eq 0 ]; then
+            echo "RED replay unexpectedly passed on parent."
+            exit 1
+          fi
+          echo "RED confirmed: regression tests fail on parent with exit $status."
+
+  green-exact:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout exact target SHA
