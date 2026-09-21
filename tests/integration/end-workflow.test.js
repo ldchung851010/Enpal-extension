@@ -181,7 +181,7 @@ function makeHarness({
     },
     async promoteStaging(range) {
       events.push('briefs.promoteStaging');
-      assert.deepEqual(range, { rowCount: 12, columnCount: 2 });
+      assert.deepEqual(range, { rowCount: 14, columnCount: 2 });
       assert.notEqual(sessionState.status, 'COMPLETED');
       if (promotionError) throw promotionError;
       promoted = true;
@@ -210,7 +210,7 @@ function makeHarness({
     endVerifyAttempts: 2,
     endPollMs: 0,
     sleep: async () => {},
-    briefPromotionRange: { rowCount: 12, columnCount: 2 }
+    briefPromotionRange: { rowCount: 14, columnCount: 2 }
   };
 
   return {
