@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { makeFakeChrome } from '../helpers/fake-chrome.js';
 import {
   createWorkspaceRegistry,
-  workspaceStorageKey
+  workspaceStorageKey,
+  isWorkspaceRuntimeReady
 } from '../../storage/workspace-registry.js';
 
 function workspace(id, suffix = id) {
@@ -91,20 +92,38 @@ test('removing a workspace deletes only its local namespace and never another wo
   assert.equal(chromeApi.__storage.unrelated, 'keep');
 });
 
-test('registry rejects an incomplete workspace so state sources cannot silently fall back to another workspace', async () => {
+test('registry persists a draft workspace with only name and Project URL without borrowing runtime sources', async () => {
   const chromeApi = makeFakeChrome();
   const registry = createWorkspaceRegistry(chromeApi);
 
-  await assert.rejects(
-    registry.save({
-      id: 'broken',
-      name: 'Broken',
-      projectUrl: 'https://chatgpt.com/g/g-p-broken'
-    }),
-    /curriculumSpreadsheetId/
-  );
+  const saved = await registry.save({
+    id: 'japanese',
+    name: 'Japanese',
+    projectUrl: 'https://chatgpt.com/g/g-p-japanese'
+  });
+  await registry.setActive(saved.id);
 
-  assert.deepEqual(await registry.list(), []);
+  const active = await registry.getActive();
+  assert.equal(active.id, 'japanese');
+  assert.equal(active.projectUrl, 'https://chatgpt.com/g/g-p-japanese');
+  assert.equal(active.setupStatus, 'DRAFT');
+  assert.equal(active.curriculumSpreadsheetId, '');
+  assert.equal(active.databaseSpreadsheetId, '');
+  assert.equal(isWorkspaceRuntimeReady(active), false);
+});
+
+test('registry normalizes a conversation URL inside a Project to the Project root', async () => {
+  const chromeApi = makeFakeChrome();
+  const registry = createWorkspaceRegistry(chromeApi);
+
+  const saved = await registry.save({
+    id: 'japanese',
+    name: 'Japanese',
+    projectUrl: 'https://chatgpt.com/g/g-p-japanese/c/abc123?utm_source=share#top'
+  });
+
+  assert.equal(saved.projectUrl, 'https://chatgpt.com/g/g-p-japanese');
+  assert.equal(saved.setupStatus, 'DRAFT');
 });
 
 

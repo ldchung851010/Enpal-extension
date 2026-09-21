@@ -137,6 +137,8 @@ Chat title chỉ là human metadata.
 
 Đổi Workspace chỉ thay active Workspace selector. Thao tác này không được mutate, copy, reset hoặc advance durable learning state của Workspace khác.
 
+Workspace mới có thể được lưu local dưới trạng thái `DRAFT` chỉ với tên và ChatGPT Project URL. DRAFT chỉ là trạng thái cấu hình: EnPal không được tạo learner runtime, START lesson, hoặc fallback sang data source của Workspace khác/default Workspace cho tới khi Workspace đó có đầy đủ required runtime source riêng. Có thể nhập URL của một conversation nằm trong Project; EnPal chuẩn hóa URL đó về Project root trước khi lưu.
+
 ---
 
 ## 1.2 Ranh giới các runtime component

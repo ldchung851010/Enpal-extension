@@ -137,6 +137,8 @@ Chat title is human metadata only.
 
 Switching Workspace changes only the active Workspace selector. It must not mutate, copy, reset, or advance another Workspace's durable learning state.
 
+A newly added Workspace may be persisted locally as `DRAFT` with only a name and ChatGPT Project URL. DRAFT is configuration state only: EnPal must not create a learner runtime, START a lesson, or fall back to another/default Workspace's data sources until that Workspace has its own complete required runtime sources. A ChatGPT conversation URL inside a Project may be accepted as input and normalized to the Project root before storage.
+
 ---
 
 ## 1.2 Runtime component boundaries

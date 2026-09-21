@@ -347,3 +347,30 @@ test('ERROR workspace may be left but its configuration remains protected for re
   assert.equal(documentRef.elements['edit-workspace-action'].disabled, true);
   assert.equal(documentRef.elements['delete-workspace-action'].disabled, true);
 });
+
+
+test('new workspace form requires only name and Project URL before draft save', () => {
+  const html = readFileSync(
+    new URL('../../sidepanel/index.html', import.meta.url),
+    'utf8'
+  );
+
+  assert.match(html, /id="workspace-name"[^>]*required/);
+  assert.match(html, /id="workspace-project-url"[^>]*required/);
+
+  for (const id of [
+    'workspace-curriculum-sheet',
+    'workspace-database-sheet',
+    'workspace-brief-sheet',
+    'workspace-brief-active-sheet-id',
+    'workspace-brief-staging-sheet-id',
+    'workspace-review-sheet',
+    'workspace-teacher-role-url',
+    'workspace-speaking-method-url',
+    'workspace-listening-method-url'
+  ]) {
+    const match = html.match(new RegExp('<input[^>]*id="' + id + '"[^>]*>'));
+    assert.ok(match, 'missing input ' + id);
+    assert.doesNotMatch(match[0], /\srequired(?:\s|>|=)/);
+  }
+});

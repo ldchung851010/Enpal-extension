@@ -71,6 +71,11 @@ export function createWorkspaceManager({
 
   function readForm() {
     const value = (field) => String(el(FIELD_MAP[field])?.value ?? '').trim();
+    const numericValue = (field) => {
+      const raw = value(field);
+      return raw === '' ? null : Number(raw);
+    };
+
     return {
       id: editingId || idFactory(),
       name: value('name'),
@@ -82,8 +87,8 @@ export function createWorkspaceManager({
       teacherRoleUrl: value('teacherRoleUrl'),
       speakingMethodUrl: value('speakingMethodUrl'),
       listeningMethodUrl: value('listeningMethodUrl'),
-      sessionBriefActiveSheetId: Number(value('sessionBriefActiveSheetId')),
-      sessionBriefStagingSheetId: Number(value('sessionBriefStagingSheetId'))
+      sessionBriefActiveSheetId: numericValue('sessionBriefActiveSheetId'),
+      sessionBriefStagingSheetId: numericValue('sessionBriefStagingSheetId')
     };
   }
 

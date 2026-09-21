@@ -9,6 +9,16 @@ const REQUIRED_NUMERIC = [
   'sessionBriefStagingSheetId'
 ];
 
+const REQUIRED_RUNTIME_STRINGS = [
+  'curriculumSpreadsheetId',
+  'databaseSpreadsheetId',
+  'sessionBriefSpreadsheetId',
+  'reviewLedgerSpreadsheetId',
+  'teacherRoleUrl',
+  'speakingMethodUrl',
+  'listeningMethodUrl'
+];
+
 const RUNTIME_IDENTITY_FIELDS = [
   'projectUrl',
   'curriculumSpreadsheetId',
@@ -26,6 +36,37 @@ function clone(value) {
   return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
+function normalizeProjectUrl(value) {
+  let project;
+  try {
+    project = new URL(String(value ?? '').trim());
+  } catch {
+    throw new Error('Workspace projectUrl must be a ChatGPT Project URL');
+  }
+
+  const segments = project.pathname.split('/').filter(Boolean);
+  if (
+    project.origin !== 'https://chatgpt.com' ||
+    segments[0] !== 'g' ||
+    typeof segments[1] !== 'string' ||
+    segments[1].trim() === ''
+  ) {
+    throw new Error('Workspace projectUrl must be a ChatGPT Project URL');
+  }
+
+  return project.origin + '/g/' + segments[1];
+}
+
+export function isWorkspaceRuntimeReady(workspace) {
+  return Boolean(workspace) &&
+    REQUIRED_RUNTIME_STRINGS.every(
+      key => typeof workspace[key] === 'string' && workspace[key].trim() !== ''
+    ) &&
+    REQUIRED_NUMERIC.every(
+      key => Number.isInteger(workspace[key]) && workspace[key] >= 0
+    );
+}
+
 function normalizeWorkspace(input) {
   const workspace = { ...input };
   if (typeof workspace.id !== 'string' || workspace.id.trim() === '') {
@@ -40,28 +81,33 @@ function normalizeWorkspace(input) {
 
   workspace.id = workspace.id.trim();
   workspace.name = workspace.name.trim();
-  Object.assign(workspace, loadRuntimeConfig(workspace));
+  workspace.projectUrl = normalizeProjectUrl(workspace.projectUrl);
 
-  let project;
-  try {
-    project = new URL(workspace.projectUrl);
-  } catch {
-    throw new Error('Workspace projectUrl must be a ChatGPT Project URL');
+  for (const key of REQUIRED_RUNTIME_STRINGS) {
+    workspace[key] = typeof workspace[key] === 'string'
+      ? workspace[key].trim()
+      : '';
   }
-  if (
-    project.origin !== 'https://chatgpt.com' ||
-    !/^\/g\/[^/]+$/.test(project.pathname.replace(/\/+$/, ''))
-  ) {
-    throw new Error('Workspace projectUrl must be a ChatGPT Project URL');
-  }
-  workspace.projectUrl = project.origin + project.pathname.replace(/\/+$/, '');
 
   for (const key of REQUIRED_NUMERIC) {
-    const value = Number(workspace[key]);
+    const raw = workspace[key];
+    if (raw == null || String(raw).trim() === '') {
+      workspace[key] = null;
+      continue;
+    }
+
+    const value = Number(raw);
     if (!Number.isInteger(value) || value < 0) {
       throw new Error('Workspace ' + key + ' must be a non-negative integer');
     }
     workspace[key] = value;
+  }
+
+  if (isWorkspaceRuntimeReady(workspace)) {
+    Object.assign(workspace, loadRuntimeConfig(workspace));
+    workspace.setupStatus = 'READY';
+  } else {
+    workspace.setupStatus = 'DRAFT';
   }
 
   return workspace;
@@ -128,7 +174,12 @@ export function createWorkspaceRegistry(
     for (const other of workspaces) {
       if (other.id === workspace.id) continue;
       for (const field of protectedFields) {
-        if (other[field] === workspace[field]) {
+        const value = workspace[field];
+        if (
+          typeof value === 'string' &&
+          value.trim() !== '' &&
+          other[field] === value
+        ) {
           throw new Error(
             `Workspace ${field} must be unique; already used by ${other.name}`
           );

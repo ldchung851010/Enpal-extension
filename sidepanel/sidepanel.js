@@ -3,7 +3,10 @@ import {
   createRuntimeWorkflow,
   DEFAULT_WORKSPACE
 } from './runtime.js';
-import { createWorkspaceRegistry } from '../storage/workspace-registry.js';
+import {
+  createWorkspaceRegistry,
+  isWorkspaceRuntimeReady
+} from '../storage/workspace-registry.js';
 import { createWorkspaceManager } from './workspace-manager.js';
 
 const ACTION_BUTTONS = Object.freeze({
@@ -160,11 +163,6 @@ export async function bootstrapSidePanel({
     throw new Error('At least one EnPal workspace is required');
   }
 
-  const workflow = workflowFactory({
-    chromeApi,
-    fetchImpl,
-    workspace: activeWorkspace
-  });
   const workspaceManager = workspaceManagerFactory({
     registry: workspaceRegistry,
     documentRef,
@@ -173,6 +171,36 @@ export async function bootstrapSidePanel({
   });
 
   await workspaceManager.initialize();
+
+  const workflow = isWorkspaceRuntimeReady(activeWorkspace)
+    ? workflowFactory({
+        chromeApi,
+        fetchImpl,
+        workspace: activeWorkspace
+      })
+    : {
+        async recover() {
+          return {
+            state: 'SETUP_REQUIRED',
+            reason: 'Complete workspace setup before starting a lesson.'
+          };
+        },
+        async confirmPlatformGate() {
+          return {
+            state: 'SETUP_REQUIRED',
+            reason: 'Complete workspace setup before starting a lesson.'
+          };
+        },
+        async start() {
+          throw new Error('Complete workspace setup before starting a lesson.');
+        },
+        async pause() {
+          throw new Error('Complete workspace setup before starting a lesson.');
+        },
+        async end() {
+          throw new Error('Complete workspace setup before starting a lesson.');
+        }
+      };
 
   const controller = createSidePanelController({
     workflow,
