@@ -18,6 +18,8 @@ const ACTION_BUTTONS = Object.freeze({
   RETRY: 'retry-action'
 });
 
+const CORE_LEARNER_ACTIONS = new Set(['START', 'PAUSE', 'END']);
+
 function learnerStateFromResult(action, result) {
   if (typeof result?.state === 'string') return result.state;
 
@@ -59,9 +61,16 @@ export function createSidePanelController({
     for (const [action, id] of Object.entries(ACTION_BUTTONS)) {
       const button = documentRef.getElementById(id);
       if (!button) continue;
-      const visible = allowed.has(action);
-      button.hidden = !visible;
-      button.disabled = !visible;
+      const enabled = allowed.has(action);
+
+      if (CORE_LEARNER_ACTIONS.has(action)) {
+        button.hidden = false;
+        button.disabled = !enabled;
+        continue;
+      }
+
+      button.hidden = !enabled;
+      button.disabled = !enabled;
     }
   }
 

@@ -99,21 +99,32 @@ test('Side Panel actions invoke only public workflow methods and render resultin
   createSidePanelController({ workflow, documentRef: fakeDocument });
 
   assert.equal(fakeDocument.elements['setup-action'].hidden, false);
-  assert.equal(fakeDocument.elements['start-action'].hidden, true);
+  for (const id of ['start-action', 'pause-action', 'end-action']) {
+    assert.equal(fakeDocument.elements[id].hidden, false);
+    assert.equal(fakeDocument.elements[id].disabled, true);
+  }
 
   await fakeDocument.elements['setup-action'].click();
   assert.equal(fakeDocument.elements['start-action'].hidden, false);
+  assert.equal(fakeDocument.elements['start-action'].disabled, false);
+  assert.equal(fakeDocument.elements['pause-action'].disabled, true);
+  assert.equal(fakeDocument.elements['end-action'].disabled, true);
 
   await fakeDocument.elements['start-action'].click();
+  assert.equal(fakeDocument.elements['start-action'].disabled, true);
   assert.equal(fakeDocument.elements['pause-action'].hidden, false);
+  assert.equal(fakeDocument.elements['pause-action'].disabled, false);
   assert.equal(fakeDocument.elements['end-action'].hidden, false);
+  assert.equal(fakeDocument.elements['end-action'].disabled, false);
 
   await fakeDocument.elements['pause-action'].click();
-  assert.equal(fakeDocument.elements['start-action'].hidden, false);
+  assert.equal(fakeDocument.elements['start-action'].disabled, false);
+  assert.equal(fakeDocument.elements['pause-action'].disabled, true);
+  assert.equal(fakeDocument.elements['end-action'].disabled, true);
 
   await fakeDocument.elements['start-action'].click();
   await fakeDocument.elements['end-action'].click();
-  assert.equal(fakeDocument.elements['start-action'].hidden, false);
+  assert.equal(fakeDocument.elements['start-action'].disabled, false);
 
   assert.deepEqual(calls, [
     ['recover', { interactiveSetup: true }],
@@ -143,9 +154,12 @@ test('Side Panel initializes from durable workflow recovery when reopened', asyn
 
   assert.deepEqual(calls, [['recover', undefined]]);
   assert.equal(fakeDocument.documentElement.dataset.enpalState, 'LEARNING');
+  assert.equal(fakeDocument.elements['start-action'].hidden, false);
+  assert.equal(fakeDocument.elements['start-action'].disabled, true);
   assert.equal(fakeDocument.elements['pause-action'].hidden, false);
+  assert.equal(fakeDocument.elements['pause-action'].disabled, false);
   assert.equal(fakeDocument.elements['end-action'].hidden, false);
-  assert.equal(fakeDocument.elements['start-action'].hidden, true);
+  assert.equal(fakeDocument.elements['end-action'].disabled, false);
 });
 
 
@@ -178,6 +192,11 @@ test('platform verification state exposes one explicit confirmation action', asy
     ['confirmPlatformGate']
   ]);
   assert.equal(fakeDocument.elements['start-action'].hidden, false);
+  assert.equal(fakeDocument.elements['start-action'].disabled, false);
+  assert.equal(fakeDocument.elements['pause-action'].hidden, false);
+  assert.equal(fakeDocument.elements['pause-action'].disabled, true);
+  assert.equal(fakeDocument.elements['end-action'].hidden, false);
+  assert.equal(fakeDocument.elements['end-action'].disabled, true);
   assert.equal(fakeDocument.documentElement.dataset.enpalState, 'READY');
 });
 
@@ -188,6 +207,20 @@ test('real Side Panel HTML contains the Project access confirmation button', () 
   );
   assert.match(html, /id="confirm-platform-action"/);
   assert.match(html, /Confirm Project access verified/);
+});
+
+test('real Side Panel HTML always renders START, PAUSE, and END as visible core controls', () => {
+  const html = readFileSync(
+    new URL('../../sidepanel/index.html', import.meta.url),
+    'utf8'
+  );
+
+  for (const id of ['start-action', 'pause-action', 'end-action']) {
+    const match = html.match(new RegExp(`<button[^>]*id="${id}"[^>]*>`));
+    assert.ok(match, `${id} must exist`);
+    assert.doesNotMatch(match[0], /\shidden(?:\s|>|=)/);
+    assert.match(match[0], /\sdisabled(?:\s|>|=)/);
+  }
 });
 
 
