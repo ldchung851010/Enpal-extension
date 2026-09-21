@@ -1328,7 +1328,7 @@ git commit -m "feat: add deterministic workflow recovery decisions"
   - `mask`
   - `supervisor`.
 
-- [ ] **Step 1: Write failing new-START integration test**
+- [x] **Step 1: Write failing new-START integration test**
 
 The fake event log must prove this order:
 
@@ -1351,7 +1351,7 @@ read active sessions
 
 Assert Voice never starts before `bindChat`.
 
-- [ ] **Step 2: Write failing chat-creation recovery test**
+- [x] **Step 2: Write failing chat-creation recovery test**
 
 Model:
 
@@ -1363,7 +1363,7 @@ Expected: bind recovered URL and do not call `createConversation()`.
 
 Add the complementary case: pending tab cannot be proven safe → create replacement conversation with the same `session_id`; no second Session row.
 
-- [ ] **Step 3: Write failing RESUME test**
+- [x] **Step 3: Write failing RESUME test**
 
 Assert:
 
@@ -1373,7 +1373,7 @@ Assert:
 - Teacher Role + Method + ACTIVE Brief + checkpoint instruction are sent;
 - no `createConversation()` call occurs.
 
-- [ ] **Step 4: Implement `workflow.start()` minimally**
+- [x] **Step 4: Implement `workflow.start()` minimally**
 
 The method may delegate to private functions `startNew()`, `recoverStarting()`, and `resumePaused()`, but the public interface remains one START action.
 
@@ -1381,7 +1381,7 @@ On Supervisor failure, continue to Voice and record degraded status.
 
 On required mask failure, throw `EnpalError(ERROR_CODES.MASK_REQUIRED, ..., true)` before sending lesson control.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```bash
 node --test tests/integration/start-workflow.test.js

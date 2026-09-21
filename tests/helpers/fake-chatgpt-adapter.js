@@ -1,4 +1,4 @@
-export function makeFakeChatGptAdapter(overrides = {}) {
+export function makeFakeChatGptAdapter(overrides = {}, { events } = {}) {
   const calls = [];
   const defaults = {
     openProject: 101,
@@ -17,6 +17,7 @@ export function makeFakeChatGptAdapter(overrides = {}) {
   function method(name) {
     return async (...args) => {
       calls.push({ name, args });
+      events?.push('chatgpt.' + name);
       const value = Object.hasOwn(overrides, name) ? overrides[name] : defaults[name];
       if (typeof value === 'function') return value(...args);
       if (value instanceof Error) throw value;
