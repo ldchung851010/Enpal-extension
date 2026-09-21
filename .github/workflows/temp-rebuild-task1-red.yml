@@ -1,0 +1,32 @@
+name: temp rebuild task1 red
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 43b9b2905d78b03c1f92eebb0b9a2be2c3e72b12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Confirm Task 1 tests fail before implementation
+        shell: bash
+        run: |
+          set +e
+          node --test tests/unit/state.test.js tests/unit/config.test.js tests/unit/errors.test.js > /tmp/red.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/red.log
+          if [ "$status" -eq 0 ]; then
+            echo "RED unexpectedly passed."
+            exit 1
+          fi
+          echo "RED confirmed for Task 1."
