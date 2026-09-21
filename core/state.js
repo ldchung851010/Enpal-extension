@@ -2,6 +2,10 @@ export const APP_STATES = Object.freeze([
   'SETUP_REQUIRED', 'READY', 'LEARNING', 'PAUSED', 'PROCESSING', 'ERROR'
 ]);
 
+export const WORKSPACE_CONFIG_STATES = Object.freeze([
+  'DRAFT', 'COMPLETE'
+]);
+
 export const SESSION_STATES = Object.freeze([
   'STARTING', 'IN_PROGRESS', 'PAUSED', 'PROCESSING', 'COMPLETED', 'ERROR'
 ]);
@@ -18,5 +22,13 @@ export const PIPELINE_PHASES = Object.freeze([
 ]);
 
 export const ACTIVE_SESSION_STATES = Object.freeze([
+  'STARTING', 'IN_PROGRESS', 'PAUSED', 'PROCESSING'
+]);
+
+export const WORKSPACE_SWITCH_BLOCKING_APP_STATES = Object.freeze([
+  'LEARNING', 'PROCESSING'
+]);
+
+export const WORKSPACE_RUNTIME_IDENTITY_LOCKING_SESSION_STATES = Object.freeze([
   'STARTING', 'IN_PROGRESS', 'PAUSED', 'PROCESSING'
 ]);
