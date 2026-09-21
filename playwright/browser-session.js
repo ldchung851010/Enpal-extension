@@ -42,10 +42,9 @@ export async function attachToChrome({
     throw new Error('Connected to Chrome but no browser context was available');
   }
 
-  const pages = context.pages();
-  const page = pages.find(candidate => candidate.url().startsWith('https://chatgpt.com/'))
-    ?? pages[0]
-    ?? await context.newPage();
+  // Use a fresh tab inside the already-authenticated Chrome context. This
+  // avoids mutating an unrelated ChatGPT tab the learner may already have open.
+  const page = await context.newPage();
 
   return {
     mode: 'attached',
