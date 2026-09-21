@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>EnPal Task 1–3 Smoke Test</title>
+  <style>
+    body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#0b1020;color:#eef2ff}
+    main{max-width:880px;margin:40px auto;padding:0 20px}
+    h1{margin-bottom:8px}
+    p{color:#a8b1c7;line-height:1.55}
+    button{padding:11px 16px;border:0;border-radius:9px;font-weight:700;cursor:pointer}
+    .results{margin-top:24px;display:grid;gap:10px}
+    .row{padding:12px 14px;border:1px solid #293653;border-radius:10px;background:#11182a}
+    .pass{border-color:#2e7d62;color:#79e2b3}
+    .fail{border-color:#9f4055;color:#ff9caf}
+    pre{white-space:pre-wrap;background:#080d18;padding:14px;border-radius:10px;overflow:auto}
+    code{color:#c4b5fd}
+  </style>
+</head>
+<body>
+<main>
+  <h1>EnPal V2 — Task 1–3 Smoke Test</h1>
+  <p>Trang này chỉ kiểm tra contract, Workspace Registry và recovery isolation trên Chrome thật. Nó không kiểm tra START/PAUSE/END, OAuth hay ChatGPT Adapter.</p>
+  <button id="run">Run Task 1–3 smoke test</button>
+  <div id="summary"></div>
+  <div id="results" class="results"></div>
+  <h2>Storage snapshot</h2>
+  <pre id="storage">Chưa chạy.</pre>
+  <script type="module" src="task1-3-workspace-smoke.js"></script>
+</main>
+</body>
+</html>
