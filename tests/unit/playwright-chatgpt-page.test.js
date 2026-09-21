@@ -3,25 +3,32 @@ import assert from 'node:assert/strict';
 
 import {
   normalizeUrl,
+  projectIdentityPath,
   isAnyConversationUrl,
   isConversationInsideProject,
   isProjectNewChatSurface
 } from '../../playwright/chatgpt-page.js';
 
-const project = 'https://chatgpt.com/g/g-p-enpal';
+const projectRoot = 'https://chatgpt.com/g/g-p-enpal';
+const projectRoute = projectRoot + '/project';
 
 test('normalizeUrl removes hash and trailing slash', () => {
   assert.equal(
-    normalizeUrl('https://chatgpt.com/g/g-p-enpal/#hello'),
-    project
+    normalizeUrl(projectRoute + '/#hello'),
+    projectRoute
   );
 });
 
-test('recognizes a conversation only when it is inside the configured Project', () => {
+test('projectIdentityPath strips the UI-only /project suffix', () => {
+  assert.equal(projectIdentityPath(projectRoute), '/g/g-p-enpal');
+  assert.equal(projectIdentityPath(projectRoot), '/g/g-p-enpal');
+});
+
+test('recognizes a conversation inside a Project whose UI URL ends in /project', () => {
   assert.equal(
     isConversationInsideProject(
-      'https://chatgpt.com/g/g-p-enpal/c/abc123',
-      project
+      projectRoot + '/c/abc123',
+      projectRoute
     ),
     true
   );
@@ -29,7 +36,7 @@ test('recognizes a conversation only when it is inside the configured Project', 
   assert.equal(
     isConversationInsideProject(
       'https://chatgpt.com/c/abc123',
-      project
+      projectRoute
     ),
     false
   );
@@ -37,7 +44,7 @@ test('recognizes a conversation only when it is inside the configured Project', 
   assert.equal(
     isConversationInsideProject(
       'https://chatgpt.com/g/g-p-other/c/abc123',
-      project
+      projectRoute
     ),
     false
   );
@@ -45,13 +52,24 @@ test('recognizes a conversation only when it is inside the configured Project', 
 
 test('recognizes global conversation URLs', () => {
   assert.equal(isAnyConversationUrl('https://chatgpt.com/c/abc123'), true);
-  assert.equal(isAnyConversationUrl(project), false);
+  assert.equal(isAnyConversationUrl(projectRoute), false);
 });
 
-test('recognizes Project new-chat surface but not an existing Project conversation', () => {
-  assert.equal(isProjectNewChatSurface(project, project), true);
+test('recognizes the /project new-chat surface', () => {
+  assert.equal(isProjectNewChatSurface(projectRoute, projectRoute), true);
+  assert.equal(isProjectNewChatSurface(projectRoot, projectRoute), true);
   assert.equal(
-    isProjectNewChatSurface(project + '/c/abc123', project),
+    isProjectNewChatSurface(projectRoot + '/c/abc123', projectRoute),
+    false
+  );
+});
+
+test('does not mistake another Project for the configured Project surface', () => {
+  assert.equal(
+    isProjectNewChatSurface(
+      'https://chatgpt.com/g/g-p-other/project',
+      projectRoute
+    ),
     false
   );
 });
