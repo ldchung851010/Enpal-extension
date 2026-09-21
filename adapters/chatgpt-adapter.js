@@ -11,14 +11,40 @@ function normalizeUrl(value) {
 export function createChatGptAdapter(chromeApi = chrome, {
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
   voiceTimeoutMs = 8_000,
-  voicePollMs = 200
+  voicePollMs = 200,
+  messageRetryTimeoutMs = 10_000,
+  messageRetryPollMs = 100
 } = {}) {
+  function isMissingReceiverError(error) {
+    return /Receiving end does not exist/i.test(
+      String(error?.message || error || '')
+    );
+  }
   async function sendToTab(tabId, action, payload = {}, { throwOnFailure = true } = {}) {
-    const response = await chromeApi.tabs.sendMessage(tabId, {
-      target: 'ENPAL_CHATGPT',
-      action,
-      ...payload
-    });
+    const timeoutMs = Math.max(0, Number(messageRetryTimeoutMs) || 0);
+    const pollMs = Math.max(1, Number(messageRetryPollMs) || 1);
+    let elapsed = 0;
+    let response;
+
+    while (true) {
+      try {
+        response = await chromeApi.tabs.sendMessage(tabId, {
+          target: 'ENPAL_CHATGPT',
+          action,
+          ...payload
+        });
+        break;
+      } catch (error) {
+        if (!isMissingReceiverError(error) || elapsed >= timeoutMs) {
+          throw error;
+        }
+
+        const waitMs = Math.min(pollMs, timeoutMs - elapsed);
+        if (waitMs <= 0) throw error;
+        await sleep(waitMs);
+        elapsed += waitMs;
+      }
+    }
 
     if (response?.ok === true || !throwOnFailure) return response ?? {
       ok: false,

@@ -127,3 +127,72 @@ test('Voice activation focuses the semantic control then uses trusted background
   ]);
   assert.deepEqual(h.calls[2].message, { type: 'ENPAL_TRUSTED_ACTIVATE', tabId: 7 });
 });
+
+
+test('adapter retries only transient missing-receiver errors until ChatGPT content runtime is ready', async () => {
+  const calls = [];
+  let attempts = 0;
+  const chromeApi = {
+    tabs: {
+      async create(details) {
+        calls.push({ kind: 'tabs.create', details });
+        return { id: 10, url: details.url };
+      },
+      async sendMessage(tabId, message) {
+        calls.push({ kind: 'tabs.sendMessage', tabId, message });
+        attempts += 1;
+        if (attempts < 3) {
+          throw new Error('Could not establish connection. Receiving end does not exist.');
+        }
+        return { ok: true, ready: true };
+      }
+    },
+    runtime: {
+      async sendMessage() {
+        return { ok: true };
+      }
+    }
+  };
+
+  const waits = [];
+  const adapter = createChatGptAdapter(chromeApi, {
+    sleep: async (ms) => waits.push(ms),
+    messageRetryTimeoutMs: 1_000,
+    messageRetryPollMs: 25
+  });
+
+  const result = await adapter.createConversation(10);
+
+  assert.deepEqual(result, { ok: true, ready: true });
+  assert.equal(attempts, 3);
+  assert.deepEqual(waits, [25, 25]);
+});
+
+test('adapter does not retry non-transient tabs.sendMessage failures', async () => {
+  let attempts = 0;
+  const chromeApi = {
+    tabs: {
+      async create(details) {
+        return { id: 10, url: details.url };
+      },
+      async sendMessage() {
+        attempts += 1;
+        throw new Error('Tab was closed');
+      }
+    },
+    runtime: {
+      async sendMessage() {
+        return { ok: true };
+      }
+    }
+  };
+
+  const adapter = createChatGptAdapter(chromeApi, {
+    sleep: async () => {
+      throw new Error('unexpected retry');
+    }
+  });
+
+  await assert.rejects(() => adapter.createConversation(10), /Tab was closed/);
+  assert.equal(attempts, 1);
+});
