@@ -1,0 +1,33 @@
+name: temp rebuild task3 red
+
+on:
+  push:
+    branches:
+      - temp/rebuild-task3-red-ci
+
+permissions:
+  contents: read
+
+jobs:
+  red:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: f4d1b7e2488dfaa7a1eb602f9d18560641773c1d
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Confirm Task 3 tests fail before implementation
+        shell: bash
+        run: |
+          set +e
+          node --test tests/unit/google-auth.test.js tests/unit/sheets-client.test.js tests/unit/task3-manifest.test.js > /tmp/red.log 2>&1
+          status=$?
+          set -e
+          cat /tmp/red.log
+          if [ "$status" -eq 0 ]; then
+            echo "RED unexpectedly passed."
+            exit 1
+          fi
+          echo "RED confirmed for Task 3."
