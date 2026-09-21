@@ -67,6 +67,21 @@ function isConversationInsideProject(candidateUrl, projectUrl) {
   }
 }
 
+function pauseCheckpointValue(session) {
+  for (const field of [
+    'pause_checkpoint',
+    'pause_checkpoint_json',
+    'pause_checkpoint_text',
+    'Pause Checkpoint',
+    'checkpoint'
+  ]) {
+    const value = session?.[field];
+    if (typeof value === 'string' && value.trim() !== '') return value;
+    if (value && typeof value === 'object' && Object.keys(value).length > 0) return value;
+  }
+  return null;
+}
+
 function buildTeachingControl({
   type,
   sessionId,
@@ -105,7 +120,10 @@ export function createWorkflow(deps) {
     chatgpt,
     mask,
     supervisor,
-    createSessionId = createDefaultSessionId
+    createSessionId = createDefaultSessionId,
+    pauseVerifyAttempts = 40,
+    pausePollMs = 500,
+    sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
   } = deps;
 
   async function verifyBrief(brief, session = null) {
@@ -366,6 +384,95 @@ export function createWorkflow(deps) {
     };
   }
 
+
+  async function verifyPausedDurably(sessionId) {
+    const attempts = Math.max(1, Number(pauseVerifyAttempts) || 1);
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const current = await sessions.getById(sessionId);
+      const checkpoint = pauseCheckpointValue(current);
+      if (
+        current?.status === 'PAUSED' &&
+        current?.phase === 'PAUSE_COMMITTED' &&
+        checkpoint !== null
+      ) {
+        return current;
+      }
+
+      if (attempt < attempts - 1 && pausePollMs > 0) {
+        await sleep(pausePollMs);
+      }
+    }
+
+    throw new EnpalError(
+      ERROR_CODES.SHEET_WRITE_UNVERIFIED,
+      'Pause Checkpoint and PAUSED state could not be verified',
+      true
+    );
+  }
+
+  async function pauseCurrent() {
+    const activeSessions = await sessions.listActive();
+    const session = activeSessions[0];
+
+    if (
+      activeSessions.length !== 1 ||
+      session?.status !== 'IN_PROGRESS' ||
+      typeof session?.chat_url !== 'string' ||
+      session.chat_url.trim() === ''
+    ) {
+      throw new EnpalError(
+        ERROR_CODES.CONSISTENCY_ERROR,
+        'PAUSE requires one bound IN_PROGRESS Session',
+        false
+      );
+    }
+
+    const tabId = await chatgpt.openConversation(session.chat_url);
+    const actualUrl = await chatgpt.getConversationUrl(tabId);
+    if (normalizeUrl(actualUrl) !== normalizeUrl(session.chat_url)) {
+      throw new EnpalError(
+        ERROR_CODES.WRONG_CHAT,
+        'Opened ChatGPT conversation does not match active Session chat_url',
+        true
+      );
+    }
+
+    await chatgpt.stopVoice(tabId);
+    await supervisor.stop();
+
+    if (requiresListeningMask(session)) {
+      await armMaskIfRequired(tabId, session);
+    }
+
+    const control = makeControl({
+      type: 'PAUSE',
+      sessionId: session.session_id,
+      body: [
+        'Create and persist the Pause Checkpoint for this active Session.',
+        'Write the semantic checkpoint to the durable Session record.',
+        'After that write succeeds, set lifecycle_status=PAUSED and pipeline_phase=PAUSE_COMMITTED.',
+        'Do not run ANALYZE, UPDATE, Review Planner, or replace the ACTIVE Session Brief.'
+      ].join('\n')
+    });
+    await chatgpt.sendControl(tabId, control);
+
+    const pausedSession = await verifyPausedDurably(session.session_id);
+
+    await journal.write({
+      sessionId: session.session_id,
+      chatUrl: session.chat_url,
+      status: 'PAUSED',
+      phase: 'PAUSE_COMMITTED'
+    });
+
+    return {
+      action: 'PAUSED',
+      session: pausedSession,
+      tabId
+    };
+  }
+
   return {
     async start() {
       const activeSessions = await sessions.listActive();
@@ -414,6 +521,10 @@ export function createWorkflow(deps) {
         default:
           throw new Error('Unsupported recovery action: ' + decision.action);
       }
+    },
+
+    async pause() {
+      return pauseCurrent();
     }
   };
 }

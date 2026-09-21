@@ -1401,7 +1401,7 @@ git commit -m "feat: implement EnPal START and RESUME workflow"
 **Interfaces:**
 - Adds `workflow.pause()`.
 
-- [ ] **Step 1: Write failing PAUSE success test**
+- [x] **Step 1: Write failing PAUSE success test**
 
 Assert order:
 
@@ -1417,7 +1417,7 @@ verify active bound chat
 
 The Extension must not generate checkpoint content itself.
 
-- [ ] **Step 2: Write failing PAUSE verification-error test**
+- [x] **Step 2: Write failing PAUSE verification-error test**
 
 If Session repository never verifies checkpoint + `PAUSED` state:
 
@@ -1425,7 +1425,7 @@ If Session repository never verifies checkpoint + `PAUSED` state:
 - no ANALYZE/UPDATE/Planner methods are called;
 - same Session/chat remain authoritative.
 
-- [ ] **Step 3: Run focused test and confirm failure**
+- [x] **Step 3: Run focused test and confirm failure**
 
 ```bash
 node --test tests/integration/pause-workflow.test.js
@@ -1433,11 +1433,11 @@ node --test tests/integration/pause-workflow.test.js
 
 Expected: FAIL.
 
-- [ ] **Step 4: Implement `workflow.pause()`**
+- [x] **Step 4: Implement `workflow.pause()`**
 
 Use one `ENPAL_CONTROL` PAUSE envelope instructing ChatGPT to create/write the semantic checkpoint for the active Session. Poll only the configured bounded Session state fields, never assistant prose.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
 ```bash
 node --test tests/integration/pause-workflow.test.js
