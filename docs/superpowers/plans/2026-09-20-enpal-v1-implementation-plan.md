@@ -779,7 +779,7 @@ test('promotion is one atomic batchUpdate call', async () => {
     activeSheetId: 1,
     stagingSheetId: 2
   });
-  await repo.promoteStaging({ rowCount: 12, columnCount: 2 });
+  await repo.promoteStaging({ rowCount: 14, columnCount: 2 });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].spreadsheetId, 'brief');
   assert.equal(calls[0].requests.length, 3);
