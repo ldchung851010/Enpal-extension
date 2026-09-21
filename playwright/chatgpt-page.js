@@ -8,6 +8,7 @@ const SEND_SELECTORS = Object.freeze([
   'button[data-testid="send-button"]',
   'button[aria-label="Send prompt"]',
   'button[aria-label="Send message"]',
+  'button[aria-label="Send"]',
   'button[aria-label^="Send"]'
 ]);
 
@@ -35,11 +36,19 @@ function normalizedPath(url) {
   return path || '/';
 }
 
+export function projectIdentityPath(value) {
+  const url = value instanceof URL ? value : new URL(value);
+  const path = normalizedPath(url);
+  return path.endsWith('/project')
+    ? path.slice(0, -'/project'.length)
+    : path;
+}
+
 export function isConversationInsideProject(candidateUrl, projectUrl) {
   try {
     const candidate = new URL(candidateUrl);
     const project = new URL(projectUrl);
-    const projectPath = normalizedPath(project);
+    const projectPath = projectIdentityPath(project);
     return candidate.origin === project.origin &&
       normalizedPath(candidate).startsWith(projectPath + '/c/');
   } catch {
@@ -61,10 +70,14 @@ export function isProjectNewChatSurface(currentUrl, projectUrl) {
     const current = new URL(currentUrl);
     const project = new URL(projectUrl);
     const currentPath = normalizedPath(current);
-    const projectPath = normalizedPath(project);
-    const insideProject = current.origin === project.origin &&
-      (currentPath === projectPath || currentPath.startsWith(projectPath + '/'));
-    return insideProject && !isConversationInsideProject(currentUrl, projectUrl);
+    const projectPath = projectIdentityPath(project);
+
+    if (current.origin !== project.origin) return false;
+    if (isAnyConversationUrl(currentUrl)) return false;
+
+    return currentPath === projectPath ||
+      currentPath === projectPath + '/project' ||
+      currentPath.startsWith(projectPath + '/project/');
   } catch {
     return false;
   }
@@ -72,11 +85,16 @@ export function isProjectNewChatSurface(currentUrl, projectUrl) {
 
 async function firstVisible(page, selectors) {
   for (const selector of selectors) {
-    const locator = page.locator(selector).first();
-    try {
-      if (await locator.isVisible()) return locator;
-    } catch {
-      // DOM changed while checking; try the next semantic candidate.
+    const matches = page.locator(selector);
+    const count = await matches.count().catch(() => 0);
+
+    for (let index = 0; index < count; index += 1) {
+      const locator = matches.nth(index);
+      try {
+        if (await locator.isVisible()) return locator;
+      } catch {
+        // DOM changed while checking; try the next semantic candidate.
+      }
     }
   }
   return null;
@@ -97,6 +115,53 @@ async function waitForVisible(page, selectors, {
 
 async function userTurns(page) {
   return page.locator(USER_TURN_SELECTOR).allInnerTexts();
+}
+
+async function typeWithKeyboard(page, composer, message) {
+  await composer.click();
+  await page.keyboard.press('Control+A').catch(() => {});
+  await page.keyboard.press('Backspace').catch(() => {});
+
+  const lines = String(message).split('\n');
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index]) {
+      await composer.pressSequentially(lines[index], { delay: 1 });
+    }
+    if (index < lines.length - 1) {
+      await page.keyboard.press('Shift+Enter');
+    }
+  }
+}
+
+async function enabledSendControl(page) {
+  const send = await firstVisible(page, SEND_SELECTORS);
+  if (!send) return null;
+
+  const disabled = await send.evaluate(element =>
+    element.disabled === true ||
+    element.getAttribute('disabled') !== null ||
+    element.getAttribute('aria-disabled') === 'true'
+  ).catch(() => true);
+
+  return disabled ? null : send;
+}
+
+async function waitForSubmittedUserTurn(page, baseline, message, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  const marker = message.slice(0, 80);
+
+  do {
+    const turns = await userTurns(page);
+    if (
+      turns.length > baseline &&
+      turns.some(turn => String(turn).includes(marker))
+    ) {
+      return { ok: true, sent: true, userTurns: turns.length };
+    }
+    await sleep(100);
+  } while (Date.now() <= deadline);
+
+  throw new Error('ChatGPT did not confirm that the message was submitted');
 }
 
 export function createChatGptPage(page, {
@@ -143,35 +208,31 @@ export function createChatGptPage(page, {
       if (!composer) throw new Error('ChatGPT composer is unavailable');
 
       const beforeTurns = await userTurns(page);
-      await composer.fill(message);
+      await typeWithKeyboard(page, composer, message);
 
-      const deadline = Date.now() + submitTimeoutMs;
+      const sendDeadline = Date.now() + Math.min(3_000, submitTimeoutMs);
       let send = null;
+
       do {
-        send = await firstVisible(page, SEND_SELECTORS);
-        if (send) {
-          const disabled = await send.isDisabled().catch(() => false);
-          if (!disabled) break;
-          send = null;
-        }
+        send = await enabledSendControl(page);
+        if (send) break;
         await sleep(100);
-      } while (Date.now() <= deadline);
+      } while (Date.now() <= sendDeadline);
 
-      if (!send) throw new Error('ChatGPT Send control did not become enabled');
+      if (send) {
+        await send.click();
+      } else {
+        // Keyboard Enter is a real Playwright input event and is safer than
+        // treating text merely present in the composer as a successful send.
+        await composer.press('Enter');
+      }
 
-      await send.click();
-
-      const baseline = beforeTurns.length;
-      const marker = message.slice(0, 80);
-      do {
-        const turns = await userTurns(page);
-        if (turns.length > baseline && turns.some(turn => turn.includes(marker))) {
-          return { ok: true, sent: true, userTurns: turns.length };
-        }
-        await sleep(100);
-      } while (Date.now() <= deadline);
-
-      throw new Error('ChatGPT did not confirm that the message was submitted');
+      return waitForSubmittedUserTurn(
+        page,
+        beforeTurns.length,
+        message,
+        submitTimeoutMs
+      );
     },
 
     async waitForConversationUrl(projectUrl) {
