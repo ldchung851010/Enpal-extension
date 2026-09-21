@@ -208,6 +208,30 @@ export function createSessionBriefRepository({
       return read(activeRange);
     },
 
+    async verifyActive(expected = null) {
+      const active = await read(activeRange);
+      if (!active.ready || active.ready_marker !== 'READY') {
+        throw new Error('ACTIVE Session Brief is not READY');
+      }
+      validateStructuredBrief(active);
+
+      if (expected) {
+        const identityMatches =
+          active.curriculum_version === expected.curriculum_version &&
+          Number(active.curriculum_sequence) ===
+            Number(expected.curriculum_sequence) &&
+          active.lesson_id === expected.lesson_id;
+        if (!identityMatches) {
+          throw new EnpalError(
+            ERROR_CODES.CONSISTENCY_ERROR,
+            'ACTIVE Session Brief identity mismatch',
+            false
+          );
+        }
+      }
+      return active;
+    },
+
     readStaging() {
       return read(stagingRange);
     },
