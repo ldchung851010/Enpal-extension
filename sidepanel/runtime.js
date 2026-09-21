@@ -70,7 +70,41 @@ async function writePlatformGateMarker(chromeApi, workspace) {
   });
 }
 
-async function verifyRequiredSheets({ workspace, token, fetchImpl }) {
+function sheetsGateFingerprint(workspace) {
+  return JSON.stringify({
+    curriculumSpreadsheetId: workspace.curriculumSpreadsheetId,
+    databaseSpreadsheetId: workspace.databaseSpreadsheetId,
+    sessionBriefSpreadsheetId: workspace.sessionBriefSpreadsheetId,
+    reviewLedgerSpreadsheetId: workspace.reviewLedgerSpreadsheetId
+  });
+}
+
+async function readSheetsGateMarker(chromeApi, workspace) {
+  const key = workspaceStorageKey(workspace.id, 'sheetsGate');
+  const result = await chromeApi.storage.local.get(key);
+  const marker = result?.[key];
+  return marker?.status === 'PASS' &&
+    marker?.fingerprint === sheetsGateFingerprint(workspace);
+}
+
+async function writeSheetsGateMarker(chromeApi, workspace) {
+  const key = workspaceStorageKey(workspace.id, 'sheetsGate');
+  await chromeApi.storage.local.set({
+    [key]: {
+      status: 'PASS',
+      verifiedAt: new Date().toISOString(),
+      fingerprint: sheetsGateFingerprint(workspace)
+    }
+  });
+}
+
+async function verifyRequiredSheets({
+  chromeApi,
+  workspace,
+  token,
+  fetchImpl,
+  interactive
+}) {
   const probe = createSheetsClient({
     getToken: async () => token,
     fetchImpl
@@ -95,9 +129,20 @@ async function verifyRequiredSheets({ workspace, token, fetchImpl }) {
     reviewHeader
   ].every(values => Array.isArray(values));
 
+  if (!readable) {
+    return { read: false, write: false };
+  }
+
+  if (interactive !== true) {
+    return {
+      read: true,
+      write: await readSheetsGateMarker(chromeApi, workspace)
+    };
+  }
+
   const databaseMarker = databaseHeader?.[0]?.[0];
-  if (!readable || typeof databaseMarker !== 'string' || databaseMarker === '') {
-    return { read: readable, write: false };
+  if (typeof databaseMarker !== 'string' || databaseMarker === '') {
+    return { read: true, write: false };
   }
 
   await probe.updateValues(
@@ -105,6 +150,7 @@ async function verifyRequiredSheets({ workspace, token, fetchImpl }) {
     'Sessions!A1',
     [[databaseMarker]]
   );
+  await writeSheetsGateMarker(chromeApi, workspace);
 
   return { read: true, write: true };
 }
@@ -137,8 +183,14 @@ export function createRuntimeWorkflow({
   const setupGate = createSetupGate({
     rawConfig: workspace,
     authorizeGoogle: interactive => getToken(interactive),
-    verifySheetsAccess: ({ token }) =>
-      verifyRequiredSheets({ workspace, token, fetchImpl }),
+    verifySheetsAccess: ({ token, interactive }) =>
+      verifyRequiredSheets({
+        chromeApi,
+        workspace,
+        token,
+        fetchImpl,
+        interactive
+      }),
     hasPlatformGateMarker: () =>
       readPlatformGateMarker(chromeApi, workspace),
     markPlatformGateVerified: () =>
