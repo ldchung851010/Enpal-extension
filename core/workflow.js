@@ -238,11 +238,10 @@ export function createWorkflow(deps) {
       checkpoint
     });
     await chatgpt.sendControl(tabId, control);
-    await chatgpt.waitUntilIdle(tabId);
 
     let boundSession = session;
     if (bindUrl === null && !session.chat_url) {
-      const capturedUrl = await chatgpt.getConversationUrl(tabId);
+      const capturedUrl = await chatgpt.waitForConversationUrl(tabId, config.projectUrl);
       if (!isConversationInsideProject(capturedUrl, config.projectUrl)) {
         throw new EnpalError(
           ERROR_CODES.WRONG_CHAT,
@@ -254,6 +253,8 @@ export function createWorkflow(deps) {
     } else if (bindUrl !== null && !session.chat_url) {
       boundSession = await sessions.bindChat(session.session_id, bindUrl);
     }
+
+    await chatgpt.waitUntilIdle(tabId);
 
     if (!markAfterVoice) {
       boundSession = await sessions.markState(

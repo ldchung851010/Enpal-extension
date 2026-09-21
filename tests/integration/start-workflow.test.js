@@ -80,7 +80,7 @@ test('new START follows durable ordering and never starts Voice before chat bind
     events,
     chatOverrides: {
       openProject: 41,
-      getConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1',
+      waitForConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1',
       startVoice: async () => {
         assert.ok(events.indexOf('sessions.bindChat') >= 0);
         return { ok: true, active: true };
@@ -106,9 +106,9 @@ test('new START follows durable ordering and never starts Voice before chat bind
     'chatgpt.createConversation',
     'mask.arm',
     'chatgpt.sendControl',
-    'chatgpt.waitUntilIdle',
-    'chatgpt.getConversationUrl',
+    'chatgpt.waitForConversationUrl',
     'sessions.bindChat',
+    'chatgpt.waitUntilIdle',
     'sessions.markState:IN_PROGRESS',
     'supervisor.start',
     'chatgpt.startVoice',
@@ -119,7 +119,7 @@ test('new START follows durable ordering and never starts Voice before chat bind
   assert.equal(repos.journalState.phase, 'LEARNING_ACTIVE');
 });
 
-test('START waits for stable configured Project context before creating the conversation', async () => {
+test('START waits for the configured Project new-chat surface before creating the conversation', async () => {
   const { deps } = makeDeps({
     chatOverrides: {
       openProject: 41,
@@ -128,7 +128,7 @@ test('START waits for stable configured Project context before creating the conv
         assert.equal(projectUrl, PROJECT_URL);
         return { ok: true, projectReady: true };
       },
-      getConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1'
+      waitForConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1'
     }
   });
 
@@ -138,6 +138,8 @@ test('START waits for stable configured Project context before creating the conv
   assert.ok(names.indexOf('waitForProjectReady') >= 0);
   assert.ok(names.indexOf('waitForProjectReady') < names.indexOf('createConversation'));
   assert.ok(names.indexOf('createConversation') < names.indexOf('sendControl'));
+  assert.ok(names.indexOf('sendControl') < names.indexOf('waitForConversationUrl'));
+  assert.ok(names.indexOf('waitForConversationUrl') < names.indexOf('waitUntilIdle'));
 });
 
 test('START sends approved Teacher Role, correct Method, and ACTIVE Brief in ENPAL_CONTROL', async () => {
@@ -145,7 +147,7 @@ test('START sends approved Teacher Role, correct Method, and ACTIVE Brief in ENP
     brief: makeBrief('Listening'),
     chatOverrides: {
       openProject: 41,
-      getConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1'
+      waitForConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1'
     }
   });
 
@@ -323,7 +325,7 @@ test('Supervisor start failure is fail-open and Voice still starts with degraded
     },
     chatOverrides: {
       openProject: 41,
-      getConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1'
+      waitForConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/new-1'
     }
   });
 

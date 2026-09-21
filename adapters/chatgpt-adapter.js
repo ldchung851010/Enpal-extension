@@ -135,7 +135,27 @@ export function createChatGptAdapter(chromeApi = chrome, {
       if (!isEnpalControl(controlText)) {
         throw new TypeError('sendControl requires an ENPAL_CONTROL envelope');
       }
-      return sendToTab(tabId, 'SEND_CONTROL', { text: controlText });
+      const focus = await sendToTab(tabId, 'FOCUS_COMPOSER');
+      const previousControlTurns = Math.max(0, Number(focus.controlTurns) || 0);
+      const result = await chromeApi.runtime.sendMessage({
+        type: 'ENPAL_TRUSTED_SEND',
+        tabId,
+        text: controlText
+      });
+      if (result?.ok !== true) {
+        throw new EnpalError(
+          ERROR_CODES.CHAT_UI_UNAVAILABLE,
+          result?.error || 'Trusted ChatGPT send failed',
+          true
+        );
+      }
+      await sendToTab(tabId, 'WAIT_CONTROL_SUBMITTED', { previousControlTurns });
+      return { ok: true, sent: true };
+    },
+
+    async waitForConversationUrl(tabId, projectUrl) {
+      const response = await sendToTab(tabId, 'WAIT_CONVERSATION_URL', { projectUrl });
+      return response.url;
     },
 
     async waitUntilIdle(tabId) {

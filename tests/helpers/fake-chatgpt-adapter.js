@@ -6,6 +6,7 @@ export function makeFakeChatGptAdapter(overrides = {}, { events } = {}) {
     createConversation: { ok: true, ready: true },
     openConversation: 102,
     sendControl: { ok: true, sent: true },
+    waitForConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/fake',
     waitUntilIdle: { ok: true, idle: true },
     getConversationUrl: 'https://chatgpt.com/g/g-p-enpal/c/fake',
     startVoice: { ok: true, active: true, changed: true },
@@ -33,6 +34,7 @@ export function makeFakeChatGptAdapter(overrides = {}, { events } = {}) {
     createConversation: method('createConversation'),
     openConversation: method('openConversation'),
     sendControl: method('sendControl'),
+    waitForConversationUrl: method('waitForConversationUrl'),
     waitUntilIdle: method('waitUntilIdle'),
     getConversationUrl: method('getConversationUrl'),
     startVoice: method('startVoice'),
@@ -111,6 +113,11 @@ export function makeCrashRecoveryChatGptAdapter({
       events.push('chatgpt.sendControl:' + type);
       onControl(type);
       return { ok: true, sent: true };
+    },
+
+    async waitForConversationUrl(tabId) {
+      record('waitForConversationUrl', [tabId, projectUrl]);
+      return tabUrls.get(tabId) ?? projectUrl + '/c/recovery-' + metrics.createConversationCount;
     },
 
     async waitUntilIdle(tabId) {

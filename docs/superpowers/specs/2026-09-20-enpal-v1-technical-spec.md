@@ -161,6 +161,9 @@ It owns:
 - new-chat creation;
 - exact-chat opening;
 - semantic control-message injection;
+- trusted browser text submission after semantic composer focus; direct mutation of ChatGPT editor state is not a correctness mechanism;
+- structured acknowledgement that a new user `ENPAL_CONTROL` turn was actually submitted; assistant prose is never parsed for this acknowledgement;
+- Project-scoped conversation URL confirmation before a new START chat is durably bound;
 - idle detection;
 - Voice UI control;
 - rename behavior;
@@ -551,8 +554,8 @@ For a new session:
 6. Open the configured ChatGPT Project in an EnPal-owned tab and record its `tab_id`.
 7. Create a new conversation.
 8. For protected Listening, arm the Listening Mask before any control message can expose protected content.
-9. Send required teaching-context links/instructions.
-10. Capture exact conversation URL.
+9. Send required teaching-context links/instructions through trusted browser input and confirm a new user `ENPAL_CONTROL` turn exists.
+10. Wait for and capture the exact conversation URL inside the configured Project; a global or different-Project conversation must fail closed.
 11. Persist `session_id + chat_url` durably and verify.
 12. Mark the Session `IN_PROGRESS`.
 13. Start Supervisor; failure follows the degraded-mode policy in Section 7.

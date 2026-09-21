@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { activateFocusedControlWithDebugger } from '../../background/voice-debugger.js';
+import { activateFocusedControlWithDebugger, typeAndSubmitWithDebugger } from '../../background/voice-debugger.js';
 
 test('always detaches debugger after trusted activation failure', async () => {
   let detachCount = 0;
@@ -50,4 +50,24 @@ test('trusted activation dispatches Enter key down/up and detaches', async () =>
   assert.equal(calls[1].method, 'Input.dispatchKeyEvent');
   assert.equal(calls[1].params.type, 'keyDown');
   assert.equal(calls[2].params.type, 'keyUp');
+});
+
+
+test('trusted text submission inserts the exact control text, presses Enter, and detaches', async () => {
+  const calls = [];
+  const chromeApi = {
+    debugger: {
+      async attach(target, version) { calls.push({ kind: 'attach', target, version }); },
+      async sendCommand(target, method, params) { calls.push({ kind: 'command', target, method, params }); },
+      async detach(target) { calls.push({ kind: 'detach', target }); }
+    }
+  };
+  const text = 'ENPAL_CONTROL\ntype=START\nEND_ENPAL_CONTROL';
+  assert.deepEqual(await typeAndSubmitWithDebugger(chromeApi, 9, text), { ok: true, sent: true });
+  assert.equal(calls[1].method, 'Input.insertText');
+  assert.equal(calls[1].params.text, text);
+  assert.equal(calls[2].method, 'Input.dispatchKeyEvent');
+  assert.equal(calls[2].params.type, 'keyDown');
+  assert.equal(calls[3].params.type, 'keyUp');
+  assert.equal(calls.at(-1).kind, 'detach');
 });

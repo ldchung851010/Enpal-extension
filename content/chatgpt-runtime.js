@@ -5,11 +5,6 @@
       '[contenteditable="true"][data-lexical-editor="true"]',
       'textarea[placeholder*="Message"]'
     ]),
-    sendButton: Object.freeze([
-      'button[data-testid="send-button"]',
-      'button[aria-label="Send prompt"]',
-      'button[aria-label*="Send"]'
-    ]),
     generating: Object.freeze([
       'button[data-testid="stop-button"]',
       'button[aria-label="Stop generating"]',
@@ -66,13 +61,41 @@
     return null;
   }
 
-  function isExactProjectRoot(currentUrl, projectUrl) {
+  function normalizedPath(url) {
+    const path = url.pathname.replace(/\/+$/, '');
+    return path || '/';
+  }
+
+  function isConversationInsideProjectUrl(candidateUrl, projectUrl) {
+    try {
+      const candidate = new URL(candidateUrl);
+      const project = new URL(projectUrl);
+      const projectPath = normalizedPath(project);
+      return candidate.origin === project.origin &&
+        normalizedPath(candidate).startsWith(projectPath + '/c/');
+    } catch {
+      return false;
+    }
+  }
+
+  function isAnyConversationUrl(candidateUrl) {
+    try {
+      const candidate = new URL(candidateUrl);
+      return /\/c\/[^/]+/.test(normalizedPath(candidate));
+    } catch {
+      return false;
+    }
+  }
+
+  function isProjectNewChatSurface(currentUrl, projectUrl) {
     try {
       const current = new URL(currentUrl);
       const project = new URL(projectUrl);
-      const currentPath = current.pathname.replace(/\/+$/, '');
-      const projectPath = project.pathname.replace(/\/+$/, '');
-      return current.origin === project.origin && currentPath === projectPath;
+      const currentPath = normalizedPath(current);
+      const projectPath = normalizedPath(project);
+      const inProject = current.origin === project.origin &&
+        (currentPath === projectPath || currentPath.startsWith(projectPath + '/'));
+      return inProject && !isConversationInsideProjectUrl(currentUrl, projectUrl);
     } catch {
       return false;
     }
@@ -80,39 +103,55 @@
 
   async function waitForProjectReady(
     projectUrl,
-    { timeoutMs = 20_000, pollMs = 100, stabilityMs = 1_000 } = {}
+    { timeoutMs = 20_000, pollMs = 100 } = {}
   ) {
     let elapsed = 0;
     const timeout = Math.max(0, Number(timeoutMs) || 0);
     const poll = Math.max(1, Number(pollMs) || 1);
-    const stability = Math.max(0, Number(stabilityMs) || 0);
 
     while (elapsed <= timeout) {
-      const projectRootReady = isExactProjectRoot(location.href, projectUrl);
-      const composerReady = Boolean(first('composer'));
-
-      if (projectRootReady && composerReady) {
-        if (stability > 0) {
-          if (elapsed + stability > timeout) break;
-          await sleep(stability);
-          elapsed += stability;
-        }
-
-        if (
-          isExactProjectRoot(location.href, projectUrl) &&
-          Boolean(first('composer'))
-        ) {
-          return { ok: true, projectReady: true, url: location.href };
-        }
+      if (isConversationInsideProjectUrl(location.href, projectUrl)) {
+        return failure('Configured ChatGPT Project opened an existing conversation instead of a new conversation surface');
       }
-
+      if (isProjectNewChatSurface(location.href, projectUrl) && Boolean(first('composer'))) {
+        return { ok: true, projectReady: true, url: String(location.href) };
+      }
       if (elapsed >= timeout) break;
       const waitMs = Math.min(poll, timeout - elapsed);
       await sleep(waitMs);
       elapsed += waitMs;
     }
 
-    return failure('Configured ChatGPT Project context did not become ready');
+    return failure('Configured ChatGPT Project new conversation surface did not become ready');
+  }
+
+  async function waitForConversationUrl(
+    projectUrl,
+    { timeoutMs = 20_000, pollMs = 100 } = {}
+  ) {
+    let elapsed = 0;
+    const timeout = Math.max(0, Number(timeoutMs) || 0);
+    const poll = Math.max(1, Number(pollMs) || 1);
+
+    while (elapsed <= timeout) {
+      const currentUrl = String(location.href);
+      if (isConversationInsideProjectUrl(currentUrl, projectUrl)) {
+        return { ok: true, url: currentUrl };
+      }
+      if (isAnyConversationUrl(currentUrl)) {
+        return {
+          ok: false,
+          code: 'WRONG_CHAT',
+          message: 'ChatGPT created the conversation outside the configured Project'
+        };
+      }
+      if (elapsed >= timeout) break;
+      const waitMs = Math.min(poll, timeout - elapsed);
+      await sleep(waitMs);
+      elapsed += waitMs;
+    }
+
+    return failure('ChatGPT did not create a conversation URL before timeout');
   }
 
   function failure(message = 'Required ChatGPT UI is unavailable') {
@@ -140,43 +179,84 @@
     emitInput(element);
   }
 
+  function countControlTurns() {
+    const nodes = Array.from(document.querySelectorAll?.('[data-message-author-role="user"]') || []);
+    return nodes.filter(node =>
+      String(node.innerText ?? node.textContent ?? '').trimStart().startsWith('ENPAL_CONTROL\n')
+    ).length;
+  }
+
+  async function focusComposer() {
+    const composer = await waitForElement('composer');
+    if (!composer) return failure('ChatGPT composer is unavailable');
+    composer.focus?.();
+    return { ok: true, focused: true, controlTurns: countControlTurns() };
+  }
+
+  async function waitForControlSubmitted(
+    previousControlTurns,
+    { timeoutMs = 10_000, pollMs = 100 } = {}
+  ) {
+    const baseline = Math.max(0, Number(previousControlTurns) || 0);
+    const timeout = Math.max(0, Number(timeoutMs) || 0);
+    const poll = Math.max(1, Number(pollMs) || 1);
+    let elapsed = 0;
+
+    while (elapsed <= timeout) {
+      const controlTurns = countControlTurns();
+      if (controlTurns > baseline) {
+        return { ok: true, submitted: true, controlTurns };
+      }
+      if (elapsed >= timeout) break;
+      const waitMs = Math.min(poll, timeout - elapsed);
+      await sleep(waitMs);
+      elapsed += waitMs;
+    }
+
+    return failure('ChatGPT did not confirm the EnPal control message was submitted');
+  }
+
   async function createConversation() {
     const composer = await waitForElement('composer');
     if (!composer) return failure('ChatGPT composer is unavailable');
     return { ok: true, ready: true };
   }
 
-  async function sendControl(text) {
-    if (typeof text !== 'string' || !text.startsWith('ENPAL_CONTROL\n')) {
-      return failure('SEND_CONTROL requires an ENPAL_CONTROL envelope');
-    }
-
-    const composer = await waitForElement('composer');
-    if (!composer) return failure('ChatGPT composer is unavailable');
-    setElementValue(composer, text);
-
-    const sendButton = await waitForElement('sendButton');
-    if (!sendButton || sendButton.disabled === true) {
-      return failure('ChatGPT Send control is unavailable');
-    }
-    sendButton.click();
-    return { ok: true, sent: true };
-  }
-
   function isGenerating() {
     return Boolean(first('generating'));
   }
 
-  async function waitUntilIdle({ timeoutMs = 20_000, pollMs = 100 } = {}) {
+  async function waitUntilIdle({
+    timeoutMs = 30_000,
+    pollMs = 100,
+    activityGraceMs = 1_200,
+    idleStabilityMs = 300
+  } = {}) {
+    const timeout = Math.max(0, Number(timeoutMs) || 0);
+    const poll = Math.max(1, Number(pollMs) || 1);
+    const grace = Math.max(0, Number(activityGraceMs) || 0);
+    const stability = Math.max(0, Number(idleStabilityMs) || 0);
     let elapsed = 0;
-    while (elapsed <= timeoutMs) {
-      if (!isGenerating()) return { ok: true, idle: true };
-      if (elapsed === timeoutMs) break;
-      const waitMs = Math.min(pollMs, timeoutMs - elapsed);
+    let sawGenerating = false;
+    let idleSince = null;
+
+    while (elapsed <= timeout) {
+      if (isGenerating()) {
+        sawGenerating = true;
+        idleSince = null;
+      } else if (sawGenerating || elapsed >= grace) {
+        if (idleSince === null) idleSince = elapsed;
+        if (elapsed - idleSince >= stability) {
+          return { ok: true, idle: true, activityObserved: sawGenerating };
+        }
+      }
+
+      if (elapsed >= timeout) break;
+      const waitMs = Math.min(poll, timeout - elapsed);
       await sleep(waitMs);
       elapsed += waitMs;
     }
-    return failure('ChatGPT did not become idle before timeout');
+    return failure('ChatGPT did not become stably idle before timeout');
   }
 
   function getConversationUrl() {
@@ -283,10 +363,25 @@
         });
       case 'CREATE_CONVERSATION':
         return createConversation();
-      case 'SEND_CONTROL':
-        return sendControl(message.text);
+      case 'FOCUS_COMPOSER':
+        return focusComposer();
+      case 'WAIT_CONTROL_SUBMITTED':
+        return waitForControlSubmitted(message.previousControlTurns, {
+          timeoutMs: message.timeoutMs,
+          pollMs: message.pollMs
+        });
+      case 'WAIT_CONVERSATION_URL':
+        return waitForConversationUrl(message.projectUrl, {
+          timeoutMs: message.timeoutMs,
+          pollMs: message.pollMs
+        });
       case 'WAIT_IDLE':
-        return waitUntilIdle({ timeoutMs: message.timeoutMs, pollMs: message.pollMs });
+        return waitUntilIdle({
+          timeoutMs: message.timeoutMs,
+          pollMs: message.pollMs,
+          activityGraceMs: message.activityGraceMs,
+          idleStabilityMs: message.idleStabilityMs
+        });
       case 'GET_CONVERSATION_URL':
         return getConversationUrl();
       case 'GET_VOICE_STATE':
@@ -314,8 +409,10 @@
 
   globalThis.EnPalChatGptRuntime = Object.freeze({
     waitForProjectReady,
+    waitForConversationUrl,
+    waitForControlSubmitted,
+    focusComposer,
     createConversation,
-    sendControl,
     waitUntilIdle,
     getConversationUrl,
     getVoiceState,

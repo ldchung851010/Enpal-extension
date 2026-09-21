@@ -161,6 +161,9 @@ Nó sở hữu:
 - tạo chat mới;
 - mở chính xác chat;
 - inject semantic control-message;
+- gửi text bằng trusted browser input sau khi focus đúng composer theo semantic selector; không dùng direct editor-state mutation làm cơ chế correctness;
+- xác nhận có thêm một user turn `ENPAL_CONTROL` sau khi gửi; không parse assistant prose để làm acknowledgement;
+- xác nhận conversation URL thuộc đúng configured Project trước khi bind chat mới của START;
 - idle detection;
 - điều khiển Voice UI;
 - rename behavior;
@@ -551,8 +554,8 @@ Với new session:
 6. Mở configured ChatGPT Project trong một EnPal-owned tab và ghi `tab_id`.
 7. Tạo conversation mới.
 8. Với protected Listening, arm Listening Mask trước khi bất kỳ control message nào có thể làm lộ protected content.
-9. Gửi required teaching-context link/instruction.
-10. Capture exact conversation URL.
+9. Gửi required teaching-context link/instruction bằng trusted browser input và xác nhận đã xuất hiện user turn `ENPAL_CONTROL` mới.
+10. Chờ và capture exact conversation URL nằm trong đúng configured Project; chat global hoặc chat của Project khác phải fail closed.
 11. Persist `session_id + chat_url` một cách bền vững và verify.
 12. Mark Session thành `IN_PROGRESS`.
 13. Start Supervisor; nếu fail áp dụng degraded-mode policy ở Section 7.

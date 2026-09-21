@@ -61,10 +61,52 @@ test('waitForProjectReady delegates the configured Project root to the ChatGPT r
   });
 });
 
+
+test('sendControl focuses the composer then uses trusted browser input instead of mutating the editor DOM', async () => {
+  const h = makeChrome({
+    FOCUS_COMPOSER: { ok: true, focused: true, controlTurns: 0 },
+    WAIT_CONTROL_SUBMITTED: { ok: true, submitted: true, controlTurns: 1 },
+    ENPAL_TRUSTED_SEND: { ok: true, sent: true }
+  });
+  const adapter = createChatGptAdapter(h.chromeApi);
+  const control = 'ENPAL_CONTROL\ntype=START\nEND_ENPAL_CONTROL';
+
+  assert.deepEqual(await adapter.sendControl(7, control), { ok: true, sent: true });
+  assert.deepEqual(h.calls, [
+    {
+      kind: 'tabs.sendMessage',
+      tabId: 7,
+      message: { target: 'ENPAL_CHATGPT', action: 'FOCUS_COMPOSER' }
+    },
+    {
+      kind: 'runtime.sendMessage',
+      message: { type: 'ENPAL_TRUSTED_SEND', tabId: 7, text: control }
+    },
+    {
+      kind: 'tabs.sendMessage',
+      tabId: 7,
+      message: { target: 'ENPAL_CHATGPT', action: 'WAIT_CONTROL_SUBMITTED', previousControlTurns: 0 }
+    }
+  ]);
+});
+
+test('waitForConversationUrl delegates Project-scoped post-send confirmation', async () => {
+  const h = makeChrome({
+    WAIT_CONVERSATION_URL: { ok: true, url: 'https://chatgpt.com/g/g-p-enpal/c/abc' }
+  });
+  const adapter = createChatGptAdapter(h.chromeApi);
+  assert.equal(
+    await adapter.waitForConversationUrl(7, 'https://chatgpt.com/g/g-p-enpal'),
+    'https://chatgpt.com/g/g-p-enpal/c/abc'
+  );
+});
+
 test('adapter sends named ENPAL_CHATGPT messages without exposing selectors', async () => {
   const h = makeChrome({
     CREATE_CONVERSATION: { ok: true, ready: true },
-    SEND_CONTROL: { ok: true, sent: true },
+    FOCUS_COMPOSER: { ok: true, focused: true, controlTurns: 0 },
+    WAIT_CONTROL_SUBMITTED: { ok: true, submitted: true, controlTurns: 1 },
+    ENPAL_TRUSTED_SEND: { ok: true, sent: true },
     WAIT_IDLE: { ok: true, idle: true },
     GET_CONVERSATION_URL: { ok: true, url: 'https://chatgpt.com/g/g-p-enpal/c/abc' },
     GET_REALTIME_FEED: { ok: true, turns: [] }
@@ -82,7 +124,8 @@ test('adapter sends named ENPAL_CHATGPT messages without exposing selectors', as
     h.calls.filter(call => call.kind === 'tabs.sendMessage').map(call => call.message),
     [
       { target: 'ENPAL_CHATGPT', action: 'CREATE_CONVERSATION' },
-      { target: 'ENPAL_CHATGPT', action: 'SEND_CONTROL', text: control },
+      { target: 'ENPAL_CHATGPT', action: 'FOCUS_COMPOSER' },
+      { target: 'ENPAL_CHATGPT', action: 'WAIT_CONTROL_SUBMITTED', previousControlTurns: 0 },
       { target: 'ENPAL_CHATGPT', action: 'WAIT_IDLE' },
       { target: 'ENPAL_CHATGPT', action: 'GET_CONVERSATION_URL' },
       { target: 'ENPAL_CHATGPT', action: 'GET_REALTIME_FEED' }
