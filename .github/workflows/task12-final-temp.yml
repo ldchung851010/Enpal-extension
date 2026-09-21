@@ -1,0 +1,21 @@
+name: Task 12 exact-final verification
+on:
+  push:
+    branches:
+      - feature/task-12-setup-sidepanel
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cb4703966daf8f3b1ab33d376ec576e12a23bcac
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Focused Task 12 tests
+        run: node --test tests/unit/sidepanel-state.test.js tests/integration/setup-flow.test.js
+      - name: Unit suite
+        run: npm run test:unit
+      - name: Full suite
+        run: npm test
