@@ -18,7 +18,11 @@ const GENERATING_SELECTORS = Object.freeze([
   'button[aria-label*="Stop generating"]'
 ]);
 
-const USER_TURN_SELECTOR = '[data-message-author-role="user"]';
+const USER_TURN_SELECTORS = Object.freeze([
+  '[data-message-author-role="user"]',
+  '[data-testid^="conversation-turn-"] [data-message-author-role="user"]',
+  'article[data-testid^="conversation-turn-"][data-message-author-role="user"]'
+]);
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -114,7 +118,22 @@ async function waitForVisible(page, selectors, {
 }
 
 async function userTurns(page) {
-  return page.locator(USER_TURN_SELECTOR).allInnerTexts();
+  const seen = [];
+  for (const selector of USER_TURN_SELECTORS) {
+    const texts = await page.locator(selector).allInnerTexts().catch(() => []);
+    for (const text of texts) {
+      const normalized = String(text ?? '').trim();
+      if (normalized && !seen.includes(normalized)) seen.push(normalized);
+    }
+  }
+  return seen;
+}
+
+async function composerText(composer) {
+  return composer.evaluate(element => {
+    if ('value' in element) return String(element.value ?? '').trim();
+    return String(element.innerText ?? element.textContent ?? '').trim();
+  }).catch(() => '');
 }
 
 async function typeWithKeyboard(page, composer, message) {
@@ -149,22 +168,47 @@ async function enabledSendControl(page) {
   return disabled ? null : send;
 }
 
-async function waitForSubmittedUserTurn(page, baseline, message, timeoutMs) {
+async function waitForSubmissionEvidence(
+  page,
+  composer,
+  baseline,
+  message,
+  timeoutMs
+) {
   const deadline = Date.now() + timeoutMs;
   const marker = message.slice(0, 80);
 
   do {
     const turns = await userTurns(page);
-    if (
+    const userTurnConfirmed =
       turns.length > baseline &&
-      turns.some(turn => String(turn).includes(marker))
-    ) {
-      return { ok: true, sent: true, userTurns: turns.length };
+      turns.some(turn => String(turn).includes(marker));
+
+    const currentUrl = page.url();
+    const conversationUrlConfirmed = isAnyConversationUrl(currentUrl);
+    const remainingComposerText = await composerText(composer);
+    const composerCleared = remainingComposerText === '';
+
+    if (userTurnConfirmed || (conversationUrlConfirmed && composerCleared)) {
+      return {
+        ok: true,
+        sent: true,
+        userTurns: turns.length,
+        evidence: userTurnConfirmed ? 'USER_TURN' : 'CONVERSATION_URL_AND_CLEARED_COMPOSER'
+      };
     }
+
     await sleep(100);
   } while (Date.now() <= deadline);
 
-  throw new Error('ChatGPT did not confirm that the message was submitted');
+  const turns = await userTurns(page);
+  const remainingComposerText = await composerText(composer);
+  throw new Error(
+    'ChatGPT did not confirm that the message was submitted. ' +
+    'url=' + page.url() +
+    '; userTurns=' + turns.length +
+    '; composerCleared=' + String(remainingComposerText === '')
+  );
 }
 
 export function createChatGptPage(page, {
@@ -213,14 +257,32 @@ export function createChatGptPage(page, {
       const beforeTurns = await userTurns(page);
       await typeWithKeyboard(page, composer, message);
 
-      // Submit through the focused composer. This is a real Playwright
-      // keyboard event and avoids pointer-event interception by ChatGPT's
-      // sticky/fade UI layers. Success is still verified from the rendered
-      // user turn below, so text merely sitting in the composer never passes.
-      await page.keyboard.press('Enter');
+      // Keyboard typing should make ChatGPT's semantic Send control enabled.
+      // Prefer the visible Send control, because some editor states treat
+      // Enter as a newline. If no enabled Send control is exposed, fall back
+      // to Enter on the focused composer.
+      const sendDeadline = Date.now() + Math.min(3_000, submitTimeoutMs);
+      let send = null;
 
-      return waitForSubmittedUserTurn(
+      do {
+        send = await enabledSendControl(page);
+        if (send) break;
+        await sleep(100);
+      } while (Date.now() <= sendDeadline);
+
+      if (send) {
+        try {
+          await send.click({ timeout: 2_000 });
+        } catch {
+          await send.click({ force: true });
+        }
+      } else {
+        await page.keyboard.press('Enter');
+      }
+
+      return waitForSubmissionEvidence(
         page,
+        composer,
         beforeTurns.length,
         message,
         submitTimeoutMs
