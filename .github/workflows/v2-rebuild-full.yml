@@ -1,0 +1,16 @@
+name: V2 Rebuild Full Regression
+
+on:
+  pull_request:
+    branches:
+      - temp/v2-ci-base
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm test
