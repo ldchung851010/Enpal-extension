@@ -26,14 +26,14 @@ Required evidence:
 - focused Node tests PASS;
 - Workspace readiness, Project URL normalization, blocking states, and workspace error codes are contract-tested.
 
-- [ ] Contract tests updated for Workspace states and switch blocking.
-- [ ] Config accepts DRAFT Workspace and validates READY Workspace.
-- [ ] Project conversation URL normalizes to Project root.
-- [ ] Runtime-ready config cannot omit required source IDs or Session Brief sheet IDs.
-- [ ] Workspace-specific error codes exist.
-- [ ] Focused automated tests PASS.
+- [x] Contract tests updated for Workspace states and switch blocking.
+- [x] Config accepts DRAFT Workspace and validates READY Workspace.
+- [x] Project conversation URL normalizes to Project root.
+- [x] Runtime-ready config cannot omit required source IDs or Session Brief sheet IDs.
+- [x] Workspace-specific error codes exist.
+- [x] Focused automated tests PASS.
 
-### Task 2 — Workspace Registry and Isolation
+**Task 1 evidence (2026-09-21):** exact committed contract files reconstructed and executed with Node; 17/17 focused tests PASS.\n\n### Task 2 — Workspace Registry and Isolation
 
 Files:
 - `storage/workspace-registry.js`
@@ -47,12 +47,12 @@ Required behavior:
 - DRAFT is allowed;
 - deleting final Workspace is rejected.
 
-- [ ] Registry tests written.
-- [ ] Registry implementation complete.
-- [ ] Cross-workspace source conflict tests PASS.
-- [ ] Focused automated tests PASS.
+- [x] Registry tests written.
+- [x] Registry implementation complete.
+- [x] Cross-workspace source conflict tests PASS.
+- [x] Focused automated tests PASS.
 
-### Task 3 — Namespaced Recovery Journal
+**Task 2 evidence (2026-09-21):** Task 1 + registry regression run; 27/27 tests PASS.\n\n### Task 3 — Namespaced Recovery Journal
 
 Files:
 - `storage/local-journal.js`
@@ -63,11 +63,11 @@ Required behavior:
 - one Workspace cannot read/write/clear another Workspace journal;
 - no legacy global recovery fallback in new runtime.
 
-- [ ] Isolation tests written.
-- [ ] Journal implementation complete.
-- [ ] Focused automated tests PASS.
+- [x] Isolation tests written.
+- [x] Journal implementation complete.
+- [x] Focused automated tests PASS.
 
-### Task 4 — OAuth and Thin Sheets Client
+**Task 3 evidence (2026-09-21):** Task 1–3 regression run; 33/33 tests PASS. Legacy global `enpalRecovery` is not read by the new journal.\n\n### Task 4 — OAuth and Thin Sheets Client
 
 - [ ] Chrome Identity contract tests PASS.
 - [ ] Sheets read/update/batchUpdate tests PASS.
