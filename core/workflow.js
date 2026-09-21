@@ -1049,6 +1049,17 @@ export function createWorkflow(deps) {
 
   return {
     async start() {
+      if (setupGate) {
+        const setup = await verifySetupOnly({ interactive: false });
+        if (setup?.state !== 'READY') {
+          throw new EnpalError(
+            ERROR_CODES.SETUP_REQUIRED,
+            setup?.reason || 'Workspace setup is not READY',
+            true
+          );
+        }
+      }
+
       const activeSessions = await sessions.listActive();
       const activeBrief = await briefs.readActive();
 
