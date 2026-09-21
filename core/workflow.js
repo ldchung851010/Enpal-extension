@@ -135,6 +135,7 @@ function buildTeachingControl({
   return makeControl({
     type,
     sessionId,
+    workspaceId: config.id,
     body: lines.join('\n')
   });
 }
@@ -516,6 +517,7 @@ export function createWorkflow(deps) {
     const control = makeControl({
       type: 'PAUSE',
       sessionId: session.session_id,
+      workspaceId: config.id,
       body: [
         'Workspace ID: ' + String(config.id ?? ''),
         'Exact EnPal Database: https://docs.google.com/spreadsheets/d/' +
@@ -599,6 +601,7 @@ export function createWorkflow(deps) {
     await chatgpt.sendControl(tabId, makeControl({
       type,
       sessionId,
+      workspaceId: config.id,
       body
     }));
     await chatgpt.waitUntilIdle(tabId);
