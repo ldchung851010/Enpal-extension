@@ -55,7 +55,7 @@ try {
   await chatgpt.waitForProjectReady(projectUrl);
 
   console.log('[4/5] Sending smoke message through visible ChatGPT controls...');
-  await chatgpt.sendMessage(message);
+  await chatgpt.sendMessage(message, projectUrl);
 
   const conversationUrl = await chatgpt.waitForConversationUrl(projectUrl);
   console.log('[5/5] PASS: authoritative conversation created inside Project');
