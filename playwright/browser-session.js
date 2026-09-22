@@ -62,6 +62,16 @@ export async function attachToChrome({
   // This inherits the user's ChatGPT login without mutating an unrelated tab.
   const page = await context.newPage();
 
+  async function disconnect({ closePage = false } = {}) {
+    if (closePage) {
+      await page.close().catch(() => {});
+    }
+
+    // For a browser obtained via connectOverCDP(), browser.close()
+    // disconnects Playwright from the externally owned Chrome process.
+    await browser.close();
+  }
+
   return {
     mode: 'attached',
     browser,
@@ -69,12 +79,10 @@ export async function attachToChrome({
     page,
     endpoint,
 
-    async close() {
-      await page.close().catch(() => {});
+    disconnect,
 
-      // For a browser obtained via connectOverCDP(), browser.close()
-      // disconnects Playwright from the externally owned Chrome process.
-      await browser.close();
+    async close() {
+      return disconnect({ closePage: true });
     }
   };
 }
