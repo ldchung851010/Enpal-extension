@@ -197,9 +197,12 @@ test('core START runs through the Playwright adapter and binds the real Project 
   assert.ok(page, 'workflow conversation page should remain open');
 
   const turn = await page.locator('[data-message-author-role="user"]').innerText();
-  assert.match(turn, /^ENPAL_CONTROL\n/);
+  assert.match(turn, /^ENPAL_CONTROL\b/);
   assert.match(turn, /type=START/);
+  assert.match(turn, /session_id=S-PW-START/);
+  assert.match(turn, /BEGIN_BODY/);
   assert.match(turn, /"lesson_id":"L001"/);
+  assert.match(turn, /END_ENPAL_CONTROL$/);
 
   assert.equal(
     await page.locator('[data-testid="voice-mode-button"]').getAttribute('aria-pressed'),
