@@ -55,13 +55,21 @@ function createDefaultSessionId() {
   return `S-${uuid}`;
 }
 
+function projectIdentityPath(value) {
+  const url = value instanceof URL ? value : new URL(value);
+  const path = url.pathname.replace(/\/+$/, '');
+  return path.endsWith('/project')
+    ? path.slice(0, -'/project'.length)
+    : path;
+}
+
 function isConversationInsideProject(candidateUrl, projectUrl) {
   try {
     const candidate = new URL(candidateUrl);
     const project = new URL(projectUrl);
-    const projectPath = project.pathname.replace(/\/+$/, '');
+    const projectPath = projectIdentityPath(project);
     return candidate.origin === project.origin &&
-      candidate.pathname.startsWith(projectPath + '/c/');
+      candidate.pathname.replace(/\/+$/, '').startsWith(projectPath + '/c/');
   } catch {
     return false;
   }
