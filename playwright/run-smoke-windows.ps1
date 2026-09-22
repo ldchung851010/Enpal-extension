@@ -54,7 +54,7 @@ if (-not (Test-CdpPort -Port $Port)) {
 
   Start-Process -FilePath $chrome -ArgumentList @(
     "--remote-debugging-port=$Port",
-    "--user-data-dir=$profile",
+    "--user-data-dir=`"$profile`"",
     "about:blank"
   )
 
