@@ -13,7 +13,8 @@
     "pw:smoke:start": "node playwright/smoke-start.js",
     "test:playwright:browser": "node --test tests/playwright/chatgpt-page.browser.test.js tests/playwright/browser-session.browser.test.js tests/playwright/workflow-start.browser.test.js",
     "test:playwright": "npm run test:playwright:unit && npm run test:playwright:browser",
-    "pw:smoke:win": "powershell -NoProfile -ExecutionPolicy Bypass -File playwright/run-smoke-windows.ps1"
+    "pw:smoke:win": "powershell -NoProfile -ExecutionPolicy Bypass -File playwright/run-smoke-windows.ps1",
+    "enpal:auth": "node playwright/auth-google.js"
   },
   "dependencies": {
     "playwright": "1.63.0"
