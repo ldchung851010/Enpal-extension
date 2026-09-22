@@ -12,7 +12,8 @@
     "pw:install": "npx playwright install chromium",
     "pw:smoke:start": "node playwright/smoke-start.js",
     "test:playwright:browser": "node --test tests/playwright/chatgpt-page.browser.test.js tests/playwright/browser-session.browser.test.js",
-    "test:playwright": "npm run test:playwright:unit && npm run test:playwright:browser"
+    "test:playwright": "npm run test:playwright:unit && npm run test:playwright:browser",
+    "pw:smoke:win": "powershell -NoProfile -ExecutionPolicy Bypass -File playwright/run-smoke-windows.ps1"
   },
   "dependencies": {
     "playwright": "1.63.0"
