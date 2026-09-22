@@ -98,6 +98,7 @@ export function createPlaywrightChatGptAdapter({
   context,
   initialPage = null,
   chatgptPageOptions = {},
+  idleOptions = {},
   voiceOptions = {}
 } = {}) {
   if (!context) throw new TypeError('Playwright BrowserContext is required');
@@ -207,7 +208,7 @@ export function createPlaywrightChatGptAdapter({
     },
 
     async waitUntilIdle(tabId) {
-      return requireTab(tabId).chatgpt.waitUntilIdle();
+      return requireTab(tabId).chatgpt.waitUntilIdle(idleOptions);
     },
 
     async getConversationUrl(tabId) {
