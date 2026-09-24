@@ -27,20 +27,8 @@ const TOOLS = Object.freeze([
   {
     name: 'get_active_brief',
     title: 'Get Active EnPal Brief',
-    description: 'Returns a fixed synthetic Session Brief used only for the Voice/MCP feasibility spike.',
+    description: 'Authoritative EnPal Session Brief for lesson bootstrap. Call this whenever the learner asks to start, begin, resume, or continue an EnPal lesson. Retrieve and use this brief before teaching.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-    annotations: READ_ONLY
-  },
-  {
-    name: 'get_supervisor_test_instruction',
-    title: 'Get Supervisor Test Instruction',
-    description: 'Returns a deterministic synthetic supervisor NUDGE for testing whether Voice can consume structured EnPal guidance.',
-    inputSchema: {
-      type: 'object',
-      properties: { observed: { type: 'string', description: 'Short observation about the current learner turn.' } },
-      required: ['observed'],
-      additionalProperties: false
-    },
     annotations: READ_ONLY
   }
 ]);
@@ -73,17 +61,6 @@ function callTool(name, args = {}) {
         mask_policy: 'NONE',
         review_focus: []
       });
-    case 'get_supervisor_test_instruction': {
-      if (typeof args.observed !== 'string' || args.observed.length === 0) {
-        return { isError: true, content: [{ type: 'text', text: 'observed must be a non-empty string' }] };
-      }
-      return textResult({
-        marker: 'ENPAL_MCP_SUPERVISOR_OK',
-        decision: 'NUDGE',
-        instruction: 'Ask one short follow-up question, then give the learner time to answer without adding an explanation.',
-        observed: args.observed
-      });
-    }
     default:
       return { isError: true, content: [{ type: 'text', text: `Unknown tool: ${name}` }] };
   }
