@@ -43,14 +43,18 @@ test('initialize negotiates MCP and advertises tools', async () => {
   });
 });
 
-test('tools/list exposes exactly the three read-only spike tools', async () => {
+test('teacher surface exposes only ping and active brief as read-only tools', async () => {
   await withServer(async base => {
     const { body } = await rpc(base, { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
-    assert.deepEqual(body.result.tools.map(t => t.name), [
-      'enpal_ping',
-      'get_active_brief',
-      'get_supervisor_test_instruction'
-    ]);
+    assert.deepEqual(body.result.tools.map(t => t.name), ['enpal_ping', 'get_active_brief']);
+
+    const brief = body.result.tools.find(t => t.name === 'get_active_brief');
+    assert.match(brief.description, /start/i);
+    assert.match(brief.description, /begin/i);
+    assert.match(brief.description, /resume/i);
+    assert.match(brief.description, /continue/i);
+    assert.match(brief.description, /before teaching/i);
+
     for (const tool of body.result.tools) {
       assert.equal(tool.annotations.readOnlyHint, true);
       assert.equal(tool.annotations.destructiveHint, false);
@@ -58,7 +62,7 @@ test('tools/list exposes exactly the three read-only spike tools', async () => {
   });
 });
 
-test('tools/call returns deterministic EnPal test payloads', async () => {
+test('tools/call returns deterministic ping and active brief payloads', async () => {
   await withServer(async base => {
     const ping = await rpc(base, {
       jsonrpc: '2.0', id: 3, method: 'tools/call',
@@ -73,13 +77,17 @@ test('tools/call returns deterministic EnPal test payloads', async () => {
     });
     assert.equal(brief.body.result.structuredContent.lesson_id, 'MCP-SPIKE-L001');
     assert.equal(brief.body.result.structuredContent.primary_skill, 'Speaking');
+  });
+});
 
-    const supervisor = await rpc(base, {
+test('supervisor tool is unavailable on the teacher MCP surface', async () => {
+  await withServer(async base => {
+    const { body } = await rpc(base, {
       jsonrpc: '2.0', id: 5, method: 'tools/call',
       params: { name: 'get_supervisor_test_instruction', arguments: { observed: 'learner hesitated' } }
     });
-    assert.equal(supervisor.body.result.structuredContent.decision, 'NUDGE');
-    assert.match(supervisor.body.result.structuredContent.instruction, /one short follow-up/i);
+    assert.equal(body.result.isError, true);
+    assert.match(body.result.content[0].text, /unknown tool/i);
   });
 });
 
