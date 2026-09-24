@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createEnpalMcpServer } from '../server.js';
 
 async function withServer(fn) {
-  const server = createEnpalMcpServer();
+  const server = createEnpalMcpServer({ supervisorToken: 'test-token' });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address();
   try { await fn(`http://127.0.0.1:${port}`); }
@@ -26,7 +26,7 @@ test('health endpoint identifies the spike', async () => {
   await withServer(async base => {
     const res = await fetch(`${base}/health`);
     assert.equal(res.status, 200);
-    assert.deepEqual(await res.json(), { ok: true, service: 'enpal-mcp-spike', version: '0.0.1' });
+    assert.deepEqual(await res.json(), { ok: true, service: 'enpal-mcp-spike', version: '0.0.2' });
   });
 });
 
@@ -43,10 +43,10 @@ test('initialize negotiates MCP and advertises tools', async () => {
   });
 });
 
-test('teacher surface exposes only ping and active brief as read-only tools', async () => {
+test('teacher surface exposes ping, active brief, and pending-guidance reader as read-only tools', async () => {
   await withServer(async base => {
     const { body } = await rpc(base, { jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
-    assert.deepEqual(body.result.tools.map(t => t.name), ['enpal_ping', 'get_active_brief']);
+    assert.deepEqual(body.result.tools.map(t => t.name), ['enpal_ping', 'get_active_brief', 'get_pending_supervisor_guidance']);
 
     const brief = body.result.tools.find(t => t.name === 'get_active_brief');
     assert.match(brief.description, /start/i);
@@ -54,6 +54,11 @@ test('teacher surface exposes only ping and active brief as read-only tools', as
     assert.match(brief.description, /resume/i);
     assert.match(brief.description, /continue/i);
     assert.match(brief.description, /before teaching/i);
+
+    const guidance = body.result.tools.find(t => t.name === 'get_pending_supervisor_guidance');
+    assert.match(guidance.description, /already-created/i);
+    assert.match(guidance.description, /control plane/i);
+    assert.equal(body.result.tools.some(t => t.name === 'get_supervisor_test_instruction'), false);
 
     for (const tool of body.result.tools) {
       assert.equal(tool.annotations.readOnlyHint, true);
@@ -80,7 +85,7 @@ test('tools/call returns deterministic ping and active brief payloads', async ()
   });
 });
 
-test('supervisor tool is unavailable on the teacher MCP surface', async () => {
+test('supervisor decision tool is unavailable on the teacher MCP surface', async () => {
   await withServer(async base => {
     const { body } = await rpc(base, {
       jsonrpc: '2.0', id: 5, method: 'tools/call',
@@ -91,10 +96,65 @@ test('supervisor tool is unavailable on the teacher MCP surface', async () => {
   });
 });
 
+test('independent supervisor side-channel enqueues guidance by session id and teacher can read it', async () => {
+  await withServer(async base => {
+    const enqueue = await fetch(`${base}/supervisor/enqueue`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer test-token' },
+      body: JSON.stringify({
+        session_id: 'voice-session-1',
+        decision: 'NUDGE',
+        instruction: 'Ask one shorter question.',
+        evidence: 'Learner hesitated.'
+      })
+    });
+    assert.equal(enqueue.status, 202);
+    const ack = await enqueue.json();
+    assert.equal(ack.marker, 'ENPAL_SUPERVISOR_ENQUEUED');
+    assert.equal(ack.session_id, 'voice-session-1');
+
+    const { body } = await rpc(base, {
+      jsonrpc: '2.0', id: 6, method: 'tools/call',
+      params: { name: 'get_pending_supervisor_guidance', arguments: { session_id: 'voice-session-1' } }
+    });
+    assert.equal(body.result.structuredContent.marker, 'ENPAL_MCP_SUPERVISOR_QUEUE_OK');
+    assert.equal(body.result.structuredContent.pending, true);
+    assert.equal(body.result.structuredContent.guidance.decision, 'NUDGE');
+    assert.equal(body.result.structuredContent.guidance.instruction, 'Ask one shorter question.');
+  });
+});
+
+test('side-channel rejects unauthorized writes', async () => {
+  await withServer(async base => {
+    const res = await fetch(`${base}/supervisor/enqueue`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ session_id: 'x', decision: 'NUDGE', instruction: 'x' })
+    });
+    assert.equal(res.status, 401);
+  });
+});
+
+test('pending guidance is isolated by session id', async () => {
+  await withServer(async base => {
+    await fetch(`${base}/supervisor/enqueue`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer test-token' },
+      body: JSON.stringify({ session_id: 'A', decision: 'CORRECT_COURSE', instruction: 'Return to the lesson focus.' })
+    });
+    const { body } = await rpc(base, {
+      jsonrpc: '2.0', id: 7, method: 'tools/call',
+      params: { name: 'get_pending_supervisor_guidance', arguments: { session_id: 'B' } }
+    });
+    assert.equal(body.result.structuredContent.pending, false);
+    assert.equal(body.result.structuredContent.session_id, 'B');
+  });
+});
+
 test('unknown tool returns an MCP tool error instead of crashing', async () => {
   await withServer(async base => {
     const { body } = await rpc(base, {
-      jsonrpc: '2.0', id: 6, method: 'tools/call',
+      jsonrpc: '2.0', id: 8, method: 'tools/call',
       params: { name: 'does_not_exist', arguments: {} }
     });
     assert.equal(body.result.isError, true);
