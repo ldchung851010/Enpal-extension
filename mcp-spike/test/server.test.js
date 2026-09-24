@@ -161,3 +161,36 @@ test('unknown tool returns an MCP tool error instead of crashing', async () => {
     assert.match(body.result.content[0].text, /unknown tool/i);
   });
 });
+
+
+test('server.js starts an HTTP server when executed directly', async () => {
+  const { spawn } = await import('node:child_process');
+  const net = await import('node:net');
+  const probe = net.createServer();
+  await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
+  const { port } = probe.address();
+  await new Promise(resolve => probe.close(resolve));
+
+  const child = spawn(process.execPath, ['server.js'], {
+    cwd: new URL('..', import.meta.url),
+    env: { ...process.env, HOST: '127.0.0.1', PORT: String(port), SUPERVISOR_SPIKE_TOKEN: 'test-token' },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  try {
+    let ok = false;
+    for (let i = 0; i < 20; i += 1) {
+      if (child.exitCode !== null) break;
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/health`);
+        if (res.ok) { ok = true; break; }
+      } catch {}
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    assert.equal(ok, true, 'direct execution must keep the server running and serve /health');
+  } finally {
+    if (child.exitCode === null) {
+      child.kill('SIGTERM');
+      await new Promise(resolve => child.once('exit', resolve));
+    }
+  }
+});
