@@ -138,3 +138,13 @@ export function createEnpalMcpServer({ supervisorToken = process.env.SUPERVISOR_
     try{const raw=await readBody(req);const payload=JSON.parse(raw||'null');if(Array.isArray(payload)){const responses=payload.map(item => handleRpc(item, guidanceBySession)).filter(Boolean);return responses.length?writeJson(res,200,responses):res.writeHead(202).end();}const response=handleRpc(payload, guidanceBySession);if(response===null)return res.writeHead(202).end();return writeJson(res,200,response);}catch(error){return writeJson(res,400,rpcError(null,-32700,`Parse error: ${error.message}`));}
   });
 }
+
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const port = Number.parseInt(process.env.PORT ?? '3000', 10);
+  const host = process.env.HOST ?? '0.0.0.0';
+  const server = createEnpalMcpServer();
+  server.listen(port, host, () => {
+    console.log(`enpal-mcp-spike listening on http://${host}:${port}/mcp`);
+  });
+}
